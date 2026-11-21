@@ -94,7 +94,10 @@ camera_update :: proc(c: ^Iso_Camera, dt: f32) {
 
     mouse := rl.GetMousePosition()
 
-    if rl.IsMouseButtonDown(rl.MouseButton.MIDDLE) {
+    shift_down := rl.IsKeyDown(rl.KeyboardKey.LEFT_SHIFT) ||
+              rl.IsKeyDown(rl.KeyboardKey.RIGHT_SHIFT)
+
+    if shift_down && rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
         if !c.dragging {
             c.previous_mouse = mouse
             c.dragging = true
