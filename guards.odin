@@ -446,17 +446,20 @@ guard_hear_noise :: proc(guard: ^Guard, noise: Noise_Event) {
     if guard.awareness.state == .ALERTED {
         return
     }
+
     if !guard_can_hear(guard.position, noise, guard.hearing_threshold) {
         return
     }
 
     previous_source := guard.awareness.last_known_source
+
     guard_awareness_hear_noise(&guard.awareness, noise.position)
-    
-    // Only turn toward noise if it became the active investigation target.
+
+    // Only face the noise if it became the active investigation target.
     if guard.awareness.last_known_source == .SOUND &&
        guard.awareness.last_known_position.x == noise.position.x &&
        guard.awareness.last_known_position.y == noise.position.y {
+
         dx := noise.position.x - guard.position.x
         dy := noise.position.y - guard.position.y
         direction_length := math.sqrt(dx*dx + dy*dy)
@@ -469,27 +472,13 @@ guard_hear_noise :: proc(guard: ^Guard, noise: Noise_Event) {
         }
     }
 
-    guard.facing = {
-        noise.position.x - guard.position.x,
-        noise.position.y - guard.position.y,
-    }
-
-    direction_length := math.sqrt(
-        guard.facing.x*guard.facing.x +
-        guard.facing.y*guard.facing.y,
-    )
-
-    if direction_length > 0.0001 {
-        guard.facing.x /= direction_length
-        guard.facing.y /= direction_length
-    }
-
-    // A new audible event restarts an unfinished sound search. A visual
-    // last-known position is never replaced by a later noise event.
+    // A new audible event restarts an unfinished sound search.
+    // A visual last-known position is never replaced by a later noise event.
     if guard.awareness.last_known_source == .SOUND &&
        (previous_source != .SOUND ||
         guard.awareness.last_known_position.x != noise.position.x ||
         guard.awareness.last_known_position.y != noise.position.y) {
+
         guard.searching = false
         guard.search_complete = false
         guard.search_pause_remaining = 0
