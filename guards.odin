@@ -27,6 +27,12 @@ Guard :: struct {
     patrol_path_target_index: int,
     patrol_path_ready: bool,
     patrol_path_found: bool,
+    investigation_path: []Mission_Point,
+    investigation_path_index: int,
+    investigation_path_goal_x: int,
+    investigation_path_goal_y: int,
+    investigation_path_ready: bool,
+    investigation_path_found: bool,
 }
 
 GUARD_DEFAULT_SPEED :: 3.5
@@ -44,6 +50,46 @@ guard_patrol_path_clear :: proc(guard: ^Guard) {
     guard.patrol_path_index = 0
     guard.patrol_path_ready = false
     guard.patrol_path_found = false
+}
+
+guard_investigation_path_clear :: proc(guard: ^Guard) {
+    delete(guard.investigation_path)
+    guard.investigation_path = nil
+    guard.investigation_path_index = 0
+    guard.investigation_path_ready = false
+    guard.investigation_path_found = false
+}
+
+guard_investigation_path_prepare :: proc(
+    guard: ^Guard,
+    mission: ^Mission,
+    target: Mission_Point,
+) {
+    goal_x := int(target.x)
+    goal_y := int(target.y)
+
+    if guard.investigation_path_ready &&
+       guard.investigation_path_goal_x == goal_x &&
+       guard.investigation_path_goal_y == goal_y {
+        return
+    }
+
+    guard_investigation_path_clear(guard)
+
+    guard.investigation_path_goal_x = goal_x
+    guard.investigation_path_goal_y = goal_y
+    guard.investigation_path_ready = true
+
+    path := nav_find_path(
+        mission,
+        guard.position,
+        target,
+        guard.radius,
+    )
+
+    guard.investigation_path = path.points
+    guard.investigation_path_index = 0
+    guard.investigation_path_found = path.found
 }
 
 guard_patrol_path_prepare :: proc(
@@ -200,6 +246,8 @@ guard_search_update :: proc(guard: ^Guard, dt: f32) {
 
 
 guard_recovery_begin :: proc(guard: ^Guard) {
+    guard_investigation_path_clear(guard)
+
     if len(guard.patrol) == 0 {
         guard.awareness.state = .UNAWARE
         guard.awareness.suspicion = 0
@@ -285,12 +333,8 @@ guard_investigate_update :: proc(
 
     target := guard.awareness.last_known_position
 
-    dx := target.x - guard.position.x
-    dy := target.y - guard.position.y
-    distance := math.sqrt(dx*dx + dy*dy)
-
-    // Reacquisition cancels the search. The awareness system has
-    // already refreshed the last-known position.
+    // Reacquisition cancels the search. Awareness has already
+    // refreshed the last-known position.
     if guard.player_visible {
         guard.searching = false
         guard.search_complete = false
@@ -298,66 +342,104 @@ guard_investigate_update :: proc(
         guard.search_sweeps_completed = 0
     }
 
-    // Reached the last-known position: pause and scan.
-    if distance <= 0.15 {
-        if !guard.player_visible {
+    guard_investigation_path_prepare(guard, mission, target)
+    
+    dx_to_target := target.x - guard.position.x
+    dy_to_target := target.y - guard.position.y
+    distance_to_target := math.sqrt(
+        dx_to_target*dx_to_target +
+        dy_to_target*dy_to_target,
+    )
+
+    if distance_to_target <= 0.15 {
+        guard.investigation_path_index = len(
+            guard.investigation_path,
+        )
+    }
+
+    // Do not search or recover if the destination cannot be reached.
+    if !guard.investigation_path_found {
+        return
+    }
+
+    remaining_time := dt
+
+    for remaining_time > 0 {
+        // Reaching the final cell centre means the guard has reached
+        // the investigation area. A* paths terminate at cell centres.
+        if guard.investigation_path_index >=
+           len(guard.investigation_path) {
+            if guard.player_visible {
+                return
+            }
+
             if !guard.searching && !guard.search_complete {
                 guard_search_begin(guard)
             }
 
             if guard.searching {
-                guard_search_update(guard, dt)
+                guard_search_update(guard, remaining_time)
 
-                // A sound investigation ends after the guard has
-                // searched the reported location.
                 if guard.search_complete &&
-                    guard.awareness.state == .SUSPICIOUS &&
-                    guard.awareness.last_known_source == .SOUND {
+                   guard.awareness.state == .SUSPICIOUS &&
+                   guard.awareness.last_known_source == .SOUND {
                     guard.awareness.state = .UNAWARE
                     guard.awareness.suspicion = 0
                     guard.awareness.last_known_source = .NONE
                     guard.search_complete = false
+                    guard_investigation_path_clear(guard)
                 } else if guard.search_complete &&
-                    guard.awareness.state == .ALERTED {
-                    // An alerted guard has finished searching the last
-                    // known position. Return to the nearest patrol point.
+                          guard.awareness.state == .ALERTED {
                     guard.awareness.state = .RECOVERING
                     guard_recovery_begin(guard)
-                    return
+                    guard_investigation_path_clear(guard)
                 }
             }
+
+            return
         }
-        return
+
+        waypoint := guard.investigation_path[
+            guard.investigation_path_index
+        ]
+
+        dx := waypoint.x - guard.position.x
+        dy := waypoint.y - guard.position.y
+        distance := math.sqrt(dx*dx + dy*dy)
+
+        if distance <= 0.0001 {
+            guard.investigation_path_index += 1
+            continue
+        }
+
+        step := min(guard.speed * remaining_time, distance)
+
+        direction := Mission_Point{
+            x = dx / distance,
+            y = dy / distance,
+        }
+
+        candidate := Mission_Point{
+            x = guard.position.x + direction.x * step,
+            y = guard.position.y + direction.y * step,
+        }
+
+        // Final collision safety check. If the route is no longer
+        // usable, discard it and let the next update replan.
+        if mission_point_collides(mission, candidate, guard.radius) {
+            guard_investigation_path_clear(guard)
+            return
+        }
+
+        guard.position = candidate
+        guard.facing = direction
+
+        remaining_time -= step / guard.speed
+
+        if step >= distance {
+            guard.investigation_path_index += 1
+        }
     }
-    // The target changed after reacquisition; resume pursuit.
-    guard.searching = false
-    guard.search_complete = false
-    guard.search_pause_remaining = 0
-
-    step := min(guard.speed * dt, distance)
-    direction_x := dx / distance
-    direction_y := dy / distance
-
-    // Resolve X and Y independently to allow sliding along obstacles.
-    candidate := Mission_Point{
-        x = guard.position.x + direction_x * step,
-        y = guard.position.y,
-    }
-
-    if !mission_point_collides(mission, candidate, guard.radius) {
-        guard.position.x = candidate.x
-    }
-
-    candidate = Mission_Point{
-        x = guard.position.x,
-        y = guard.position.y + direction_y * step,
-    }
-
-    if !mission_point_collides(mission, candidate, guard.radius) {
-        guard.position.y = candidate.y
-    }
-
-    guard.facing = {direction_x, direction_y}
 }
 
 guard_hear_noise :: proc(guard: ^Guard, noise: Noise_Event) {
@@ -492,10 +574,10 @@ guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
     }
 }
 
-
 guards_destroy :: proc(guards: []Guard) {
     for guard in guards {
         delete(guard.patrol_path)
+        delete(guard.investigation_path)
     }
 
     delete(guards)
