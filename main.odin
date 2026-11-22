@@ -32,7 +32,7 @@ player_init :: proc(position: rl.Vector3) -> Player {
     }
 }
 
-player_update :: proc(p: ^Player, mission: ^Mission, dt: f32) {
+player_update :: proc(p: ^Player, mission: ^Mission, dt: f32) -> bool {
     input := rl.Vector3{}
 
     if rl.IsKeyDown(rl.KeyboardKey.W) do input.z -= 1
@@ -99,13 +99,21 @@ player_update :: proc(p: ^Player, mission: ^Mission, dt: f32) {
     p.position.x = math.clamp(p.position.x, p.radius, 100 - p.radius)
     p.position.z = math.clamp(p.position.z, p.radius, 100 - p.radius)
 
-    // Footsteps are emitted at a fixed cadence while moving.
-    speed := math.sqrt(p.velocity.x*p.velocity.x + p.velocity.z*p.velocity.z)
-    if speed > 0.5 {
-        p.footstep_timer -= dt
-    } else {
-        p.footstep_timer = 0
+    // Emit a footstep at the configured cadence while moving.
+speed := math.sqrt(p.velocity.x*p.velocity.x + p.velocity.z*p.velocity.z)
+
+if speed > 0.5 {
+    p.footstep_timer -= dt
+
+    if p.footstep_timer <= 0 {
+        p.footstep_timer = PLAYER_FOOTSTEP_INTERVAL
+        return true
     }
+} else {
+    p.footstep_timer = 0
+}
+
+return false
 }
 
 main :: proc() {
