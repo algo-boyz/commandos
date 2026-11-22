@@ -134,7 +134,7 @@ guard_investigate_update :: proc(
         return
     }
 
-    target := guard.awareness.last_known_player_position
+    target := guard.awareness.last_known_position
 
     dx := target.x - guard.position.x
     dy := target.y - guard.position.y
@@ -158,6 +158,17 @@ guard_investigate_update :: proc(
 
             if guard.searching {
                 guard_search_update(guard, dt)
+
+                // A sound investigation ends after the guard has
+                // searched the reported location.
+                if guard.search_complete &&
+                    guard.awareness.state == .SUSPICIOUS &&
+                    guard.awareness.last_known_source == .SOUND {
+                    guard.awareness.state = .UNAWARE
+                    guard.awareness.suspicion = 0
+                    guard.awareness.last_known_source = .NONE
+                    guard.search_complete = false
+                }
             }
         }
         return
@@ -199,7 +210,9 @@ guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
     }
     for i in 0..<len(guards) {
         guard := &guards[i]
-        if guard.awareness.state == .ALERTED {
+        if guard.awareness.state == .ALERTED ||
+            (guard.awareness.state == .SUSPICIOUS &&
+             guard.awareness.last_known_source == .SOUND) {
             guard_investigate_update(guard, mission, dt)
             continue
         }
