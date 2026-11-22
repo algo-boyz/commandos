@@ -415,3 +415,108 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
     }
     testing.expect(t, reached_waypoint)
 }
+
+
+@(test)
+test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
+    mission := Mission{
+        buildings = {
+            Mission_Rect{
+                x = 12,
+                y = 10,
+                w = 5,
+                h = 5,
+            },
+        },
+    }
+
+    guard := Guard{
+        position = {10.5, 12.5},
+        awareness = Guard_Awareness{
+            state = .RECOVERING,
+            suspicion = 1,
+            last_known_source = .SIGHT,
+        },
+        patrol = []Mission_Point{
+            {10.5, 12.5},
+            {18.5, 12.5},
+        },
+        target_index = 1,
+        speed = 3.5,
+        pause_duration = 1,
+        radius = GUARD_RADIUS,
+    }
+
+    guards := []Guard{guard}
+    defer delete(guards[0].patrol_path)
+
+    reached_waypoint := false
+
+    for _ in 0..<1000 {
+        guard_update(guards, &mission, 0.05)
+
+        testing.expect(
+            t,
+            !mission_point_collides(
+                &mission,
+                guards[0].position,
+                guards[0].radius,
+            ),
+        )
+
+        if guards[0].awareness.state == .UNAWARE {
+            reached_waypoint = true
+            break
+        }
+    }
+
+    testing.expect(t, reached_waypoint)
+    testing.expect(t, guards[0].position.x == 18.5)
+    testing.expect(t, guards[0].position.y == 12.5)
+    testing.expect(t, guards[0].awareness.suspicion == 0)
+    testing.expect(t, guards[0].awareness.last_known_source == .NONE)
+}
+
+
+@(test)
+test_guard_recovery_does_not_reset_when_path_unreachable :: proc(t: ^testing.T) {
+    mission := Mission{
+        buildings = {
+            Mission_Rect{
+                x = 20,
+                y = 0,
+                w = 2,
+                h = 100,
+            },
+        },
+    }
+
+    guard := Guard{
+        position = {10.5, 10.5},
+        awareness = Guard_Awareness{
+            state = .RECOVERING,
+            suspicion = 1,
+            last_known_source = .SIGHT,
+        },
+        patrol = []Mission_Point{
+            {10.5, 10.5},
+            {30.5, 10.5},
+        },
+        target_index = 1,
+        speed = 3.5,
+        pause_duration = 1,
+        radius = GUARD_RADIUS,
+    }
+
+    guards := []Guard{guard}
+    defer delete(guards[0].patrol_path)
+
+    for _ in 0..<100 {
+        guard_update(guards, &mission, 0.1)
+    }
+
+    testing.expect(t, guards[0].awareness.state == .RECOVERING)
+    testing.expect(t, guards[0].awareness.suspicion == 1)
+    testing.expect(t, guards[0].awareness.last_known_source == .SIGHT)
+    testing.expect(t, guards[0].position.x < 20)
+}

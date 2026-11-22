@@ -224,6 +224,7 @@ guard_recovery_begin :: proc(guard: ^Guard) {
     }
 
     guard.target_index = nearest_index
+    guard_patrol_path_clear(guard)
     guard.search_complete = false
 }
 
@@ -383,7 +384,6 @@ guard_hear_noise :: proc(guard: ^Guard, noise: Noise_Event) {
     }
 }
 
-
 guard_recover_update :: proc(
     guard: ^Guard,
     mission: ^Mission,
@@ -397,47 +397,71 @@ guard_recover_update :: proc(
         guard.awareness.state = .UNAWARE
         guard.awareness.suspicion = 0
         guard.awareness.last_known_source = .NONE
+        guard_patrol_path_clear(guard)
         return
     }
 
-    target := guard.patrol[guard.target_index]
-    dx := target.x - guard.position.x
-    dy := target.y - guard.position.y
-    distance := math.sqrt(dx*dx + dy*dy)
+    guard_patrol_path_prepare(guard, mission)
 
-    if distance <= 0.15 {
-        guard.position = target
-        guard.target_index = (guard.target_index + 1) % len(guard.patrol)
-        guard.pause_remaining = guard.pause_duration
-        guard.awareness.state = .UNAWARE
-        guard.awareness.suspicion = 0
-        guard.awareness.last_known_source = .NONE
+    if !guard.patrol_path_found {
         return
     }
 
-    step := min(guard.speed * dt, distance)
-    direction_x := dx / distance
-    direction_y := dy / distance
+    remaining_time := dt
 
-    candidate := Mission_Point{
-        x = guard.position.x + direction_x * step,
-        y = guard.position.y,
+    for remaining_time > 0 {
+        if guard.patrol_path_index >= len(guard.patrol_path) {
+            target := guard.patrol[guard.target_index]
+
+            guard.position = target
+            guard.target_index = (guard.target_index + 1) % len(guard.patrol)
+            guard.pause_remaining = guard.pause_duration
+
+            guard.awareness.state = .UNAWARE
+            guard.awareness.suspicion = 0
+            guard.awareness.last_known_source = .NONE
+
+            guard_patrol_path_clear(guard)
+            return
+        }
+
+        target := guard.patrol_path[guard.patrol_path_index]
+
+        dx := target.x - guard.position.x
+        dy := target.y - guard.position.y
+        distance := math.sqrt(dx*dx + dy*dy)
+
+        if distance <= 0.0001 {
+            guard.patrol_path_index += 1
+            continue
+        }
+
+        step := min(guard.speed * remaining_time, distance)
+
+        direction := Mission_Point{
+            x = dx / distance,
+            y = dy / distance,
+        }
+
+        candidate := Mission_Point{
+            x = guard.position.x + direction.x * step,
+            y = guard.position.y + direction.y * step,
+        }
+
+        if mission_point_collides(mission, candidate, guard.radius) {
+            guard_patrol_path_clear(guard)
+            return
+        }
+
+        guard.position = candidate
+        guard.facing = direction
+
+        remaining_time -= step / guard.speed
+
+        if step >= distance {
+            guard.patrol_path_index += 1
+        }
     }
-
-    if !mission_point_collides(mission, candidate, guard.radius) {
-        guard.position.x = candidate.x
-    }
-
-    candidate = Mission_Point{
-        x = guard.position.x,
-        y = guard.position.y + direction_y * step,
-    }
-
-    if !mission_point_collides(mission, candidate, guard.radius) {
-        guard.position.y = candidate.y
-    }
-
-    guard.facing = {direction_x, direction_y}
 }
 
 guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
