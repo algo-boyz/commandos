@@ -175,6 +175,9 @@ main :: proc() {
     camera := iso.camera_init(player.position, 65)
     camera.follow_enabled = true
 
+    nav_debug_path := Navigation_Path_Result{}
+    defer delete(nav_debug_path.points)
+
     for !rl.WindowShouldClose() {
         dt := rl.GetFrameTime()
 
@@ -184,6 +187,27 @@ main :: proc() {
         }
         
         game_update(&player, guards, &mission, dt)
+        
+        // Recalculate a debug path for the west guard on demand.
+        if rl.IsKeyPressed(rl.KeyboardKey.P) {
+            delete(nav_debug_path.points)
+            nav_debug_path = Navigation_Path_Result{}
+
+            if len(guards) > 0 {
+                guard := &guards[0]
+
+                if len(guard.patrol) > 0 &&
+                   guard.target_index >= 0 &&
+                   guard.target_index < len(guard.patrol) {
+                    nav_debug_path = nav_find_path(
+                        &mission,
+                        guard.position,
+                        guard.patrol[guard.target_index],
+                        guard.radius,
+                    )
+                }
+            }
+        }
        
         iso.camera_update(&camera, dt)
         iso.camera_follow(&camera, player.position, dt)
@@ -201,6 +225,31 @@ main :: proc() {
         rl.DrawGrid(100, 5)
 
         mission_draw(&mission)
+
+        // Navigation debug path.
+        if nav_debug_path.found && len(nav_debug_path.points) > 0 {
+            for i in 0..<len(nav_debug_path.points) {
+                point := nav_debug_path.points[i]
+
+                // Draw path nodes just above ground level.
+                rl.DrawSphere(
+                    {point.x, 0.18, point.y},
+                    0.20,
+                    rl.GOLD,
+                )
+
+                // Connect consecutive nodes.
+                if i + 1 < len(nav_debug_path.points) {
+                    next := nav_debug_path.points[i + 1]
+
+                    rl.DrawLine3D(
+                        {point.x, 0.18, point.y},
+                        {next.x, 0.18, next.y},
+                        rl.GOLD,
+                    )
+                }
+            }
+        }
 
         // Player and facing indicator.
         rl.DrawSphere(
@@ -256,7 +305,7 @@ main :: proc() {
         rl.EndMode3D()
 
         rl.DrawText("OPERATION EAGLE NEST", 20, 20, 24, rl.DARKGRAY)
-        rl.DrawText("WASD: move   F: toggle camera follow", 20, 54, 18, rl.DARKGRAY)
+        rl.DrawText("WASD: move   F: camera follow   P: calculate guard path", 20, 54, 18, rl.DARKGRAY)
         rl.DrawText("Shift + drag: pan   Trackpad scroll: zoom", 20, 78, 18, rl.DARKGRAY)
 
         rl.EndDrawing()
