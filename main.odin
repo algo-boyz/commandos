@@ -163,20 +163,28 @@ main :: proc() {
         )
 
         vision := VISION_DEFAULT
+        awareness_config := AWARENESS_DEFAULT
+        player_point := Mission_Point{player.position.x, player.position.z}
 
         // Guards
-        for guard in guards {
+        for i in 0..<len(guards) {
+            guard := &guards[i]
+
             sees_player := guard_can_see(
                 guard.position,
                 guard.facing,
-                Mission_Point{player.position.x, player.position.z},
+                player_point,
                 &mission,
                 vision,
             )
 
-            if sees_player {
-                // Awareness logic comes in the next phase.
-            }
+            guard_awareness_update(
+                &guard.awareness,
+                sees_player,
+                player_point,
+                dt,
+                awareness_config,
+            )
 
             guard_position := rl.Vector3{
                 guard.position.x,
@@ -184,7 +192,14 @@ main :: proc() {
                 guard.position.y,
             }
 
-            rl.DrawSphere(guard_position, guard.radius, rl.RED)
+            guard_color := rl.RED
+            if guard.awareness.state == .SUSPICIOUS {
+                guard_color = rl.ORANGE
+            } else if guard.awareness.state == .ALERTED {
+                guard_color = rl.MAROON
+            }
+
+            rl.DrawSphere(guard_position, guard.radius, guard_color)
 
             rl.DrawLine3D(
                 guard_position,
