@@ -49,6 +49,23 @@ player_init :: proc(position: rl.Vector3) -> Player {
 }
 
 player_update :: proc(p: ^Player, mission: ^Mission, dt: f32) -> bool {
+    sneaking := rl.IsKeyDown(rl.KeyboardKey.LEFT_CONTROL)
+    running := rl.IsKeyDown(rl.KeyboardKey.LEFT_SHIFT) && !sneaking
+
+    if sneaking {
+        p.move_speed = PLAYER_SNEAK_SPEED
+        p.footstep_noise_radius = PLAYER_SNEAK_NOISE_RADIUS
+        p.footstep_noise_intensity = PLAYER_SNEAK_NOISE_INTENSITY
+    } else if running {
+        p.move_speed = PLAYER_RUN_SPEED
+        p.footstep_noise_radius = PLAYER_RUN_NOISE_RADIUS
+        p.footstep_noise_intensity = PLAYER_RUN_NOISE_INTENSITY
+    } else {
+        p.move_speed = PLAYER_WALK_SPEED
+        p.footstep_noise_radius = PLAYER_WALK_NOISE_RADIUS
+        p.footstep_noise_intensity = PLAYER_WALK_NOISE_INTENSITY
+    }
+
     input := rl.Vector3{}
 
     if rl.IsKeyDown(rl.KeyboardKey.W) do input.z -= 1
@@ -115,21 +132,28 @@ player_update :: proc(p: ^Player, mission: ^Mission, dt: f32) -> bool {
     p.position.x = math.clamp(p.position.x, p.radius, 100 - p.radius)
     p.position.z = math.clamp(p.position.z, p.radius, 100 - p.radius)
 
-    // Emit a footstep at the configured cadence while moving.
-speed := math.sqrt(p.velocity.x*p.velocity.x + p.velocity.z*p.velocity.z)
+    interval := PLAYER_WALK_INTERVAL
 
-if speed > 0.5 {
-    p.footstep_timer -= dt
-
-    if p.footstep_timer <= 0 {
-        p.footstep_timer = PLAYER_FOOTSTEP_INTERVAL
-        return true
+    if sneaking {
+        interval = PLAYER_SNEAK_INTERVAL
+    } else if running {
+        interval = PLAYER_RUN_INTERVAL
     }
-} else {
-    p.footstep_timer = 0
-}
+    // Emit a footstep at the configured cadence while moving.
+    speed := math.sqrt(p.velocity.x*p.velocity.x + p.velocity.z*p.velocity.z)
 
-return false
+    if speed > 0.5 {
+        p.footstep_timer -= dt
+
+        if p.footstep_timer <= 0 {
+            p.footstep_timer = interval
+            return true
+        }
+    } else {
+        p.footstep_timer = 0
+    }
+
+    return false
 }
 
 main :: proc() {

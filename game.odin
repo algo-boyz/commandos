@@ -17,8 +17,8 @@ game_update :: proc(
                 player.position.x,
                 player.position.z,
             },
-            radius = PLAYER_FOOTSTEP_NOISE_RADIUS,
-            intensity = PLAYER_FOOTSTEP_NOISE_INTENSITY,
+            radius = player.footstep_noise_radius,
+            intensity = player.footstep_noise_intensity,
         }
 
         for i in 0..<len(guards) {

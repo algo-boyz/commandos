@@ -4,7 +4,6 @@
 **Language:** Odin\
 **Rendering:** Raylib\
 **Platform:** macOS (Apple Silicon)\
-**Current branch:** `feat/mission-geometry`
 
 We're building a tactical stealth game inspired by the original *Commandos* series, using Odin & Raylib.
 
@@ -31,10 +30,6 @@ The camera currently feels right for a first iteration.
 
 ### Mission geometry
 
-Mission geometry has been moved from hardcoded values into `mission.json`.
-
-Files:
-
 - `main.odin`
 - `mission.odin`
 - `mission.json`
@@ -50,13 +45,11 @@ Implemented:
 - Shared geometry definitions for rendering & collision.
 - Circle-versus-box & circle-versus-circle collision.
 
-The user pushed the changes & confirmed:
+The user pushes changes & confirms:
 
 `odin test .` — working.
 
-## 2. Latest development task: Guard patrols
-
-We agreed on the following sequence:
+## 2. Latest development
 
 1. Guard patrol movement.
 2. Line of sight.
@@ -82,7 +75,6 @@ Default parameters:
 ## GitHub
 
 [https://github.com/algo-boyz/commandos](https://github.com/algo-boyz/commandos)
-`feat/mission-geometry`
 
 The repo was readable through GitHub integration, but write operations returned HTTP 403
 
@@ -100,8 +92,6 @@ The repo was readable through GitHub integration, but write operations returned 
 - User tests locally, then shares compiler output or confirms success.
 
 Use Odin syntax & when possible, add tests before or alongside simulation features.
-
-## 6. Immediate next steps
 
 **Phase 1 — Guard perception**
 
@@ -127,20 +117,32 @@ Use Odin syntax & when possible, add tests before or alongside simulation featur
 
 ---
 
-Excellent. All 12 tests pass, and the observed behavior is exactly what we intended: guards investigate the last-known position, not the player's current position.
-
-That gives us an important stealth mechanic:
-1. A guard spots the player.
-2. Suspicion builds until the guard becomes alerted.
-3. The player escapes behind cover.
-4. The guard moves to the last position where the player was seen.
-5. The guard stops there, even if the player has moved elsewhere.
-I'd preserve this behavior. It creates the foundation for stealth and evasion without making guards omniscient.
-I'd suggest a small extension:
+- A guard spots the player.
+- Suspicion builds until the guard becomes alerted.
+- The player escapes behind cover.
+- The guard moves to the last position where the player was seen.
+- The guard stops there, even if the player has moved elsewhere.
 - When a guard reaches the last-known position, it pauses briefly.
 - It scans left and right, rotating its facing direction.
 - If it sees the player again, it updates the last-known position and resumes pursuit.
 - If it doesn't, it remains alerted for now.
-This gives us believable guard behavior before introducing coordinated alarms or combat.
 
-One question before implementing it: should guards eventually return to their patrol after searching unsuccessfully, or remain alerted indefinitely in this first version?
+- Player movement emits footsteps at a 0.45-second cadence.
+- Footsteps use the existing Noise_Event.
+- Noise is delivered to guards through existing guard_hear_noise().
+- Existing attenuation and hearing thresholds determine who hears it.
+- Existing awareness logic transitions guards to suspicious and preserves the sound source.
+- Existing investigation behaviour handles the response.
+- Visual detection still takes precedence.
+- Walk near a guard — they should investigate.
+- Walk farther away — they should remain unaware.
+- Walk behind walls — confirm sound still propagates (currently expected; sound occlusion isn't implemented).
+- Stop moving — footsteps stop.
+
+### **Controls**
+
+| Input        | Mode  | Speed | Noise  |
+| ------------ | ----- | ----- | ------ |
+| WASD         | Walk  | 12    | Normal |
+| Ctrl + WASD  | Sneak | 4.5   | Quiet  |
+| Shift + WASD | Run   | 18    | Loud   |
