@@ -2,6 +2,7 @@
 package main
 
 import "core:testing"
+import "core:fmt"
 
 @(test)
 test_alerted_guard_moves_to_last_known_position :: proc(t: ^testing.T) {
@@ -360,6 +361,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
         },
         target_index = 1,
         speed = 3.2,
+        pause_duration = 1.0,
         radius = GUARD_RADIUS,
     }
 
@@ -386,5 +388,17 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
         }
     }
 
+    fmt.println("Guard patrol diagnostic:")
+    fmt.printfln("  position: %.2f, %.2f",
+        guards[0].position.x,
+        guards[0].position.y,
+    )
+    fmt.printfln("  target_index: %d", guards[0].target_index)
+    fmt.printfln("  path_found: %v", guards[0].patrol_path_found)
+    fmt.printfln("  path_ready: %v", guards[0].patrol_path_ready)
+    fmt.printfln("  path_index: %d / %d",
+        guards[0].patrol_path_index,
+        len(guards[0].patrol_path),
+    )
     testing.expect(t, reached_waypoint)
 }
