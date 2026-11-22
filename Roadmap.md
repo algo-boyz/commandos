@@ -268,3 +268,357 @@ And one beautiful Gaussian environment.
 
 That's the point where we find out whether we have the beginnings of something special.
 
+# **Commandos — Project assessment & development roadmap**
+
+My assessment: **we've moved beyond a camera-and-movement prototype. We now have the foundations of a proper tactical stealth game.**
+
+The important milestone isn't the amount of code we've written. It's that we've started establishing the systems that make a Commandos-style game possible:
+
+- A navigable isometric world.
+- A data-driven mission environment.
+- Shared geometry for rendering and collision.
+- Player movement with physical constraints.
+- Guard patrols and waypoint timing.
+- A perception and awareness system.
+- Investigation behaviour, including searching the last known player position.
+
+That's a meaningful progression.
+
+I would resist the temptation to introduce Gaussian Splatting just yet. We should first establish a small but convincing gameplay loop. That will give us something concrete to render with the new technology later.
+
+## **1. Where we stand**
+
+**Current project maturity**
+
+Core prototype
+
+**World and camera**
+
+Established
+
+**Mission geometry**
+
+Established
+
+**Player controller**
+
+First iteration
+
+**Guard AI**
+
+In development
+
+**Gameplay loop**
+
+Not implemented
+
+**Visual production**
+
+Not started
+
+Qualitative engineering assessment, not measured completion percentages.
+
+### **What's particularly good**
+
+**1. Mission geometry is becoming authoritative.**
+
+Moving the environment into `mission.json` was an important decision. We can now develop missions independently of rendering and gameplay implementation.
+
+**2. We have started thinking in terms of behaviour rather than animation.**
+
+The guard's investigation and search behaviour is much more important than making a guard look convincing. The player needs to understand what the guard knows, suspects and is doing.
+
+**3. We haven't overengineered the renderer.**
+
+Raylib is doing exactly what we need right now: providing a quick feedback loop while we develop gameplay.
+
+## **2. What needs attention before adding more features**
+
+Having inspected the current branch, I see a few things worth addressing. Nothing requires a major rewrite.
+
+### **A. Separate simulation from rendering**
+
+In `main.odin`, guard awareness is currently updated inside the drawing section.
+
+That means perception, suspicion and state transitions are effectively tied to rendering.
+
+We should change this:
+
+```
+Game loop
+ ├── Input
+ ├── Player update
+ ├── Guard movement
+ ├── Guard perception
+ ├── Guard awareness
+ ├── Mission state
+ └── Rendering
+```
+
+Rendering should become read-only.
+
+This is important when we eventually introduce more expensive rendering techniques, variable frame rates or replay functionality.
+
+### **B. Guard patrols need collision awareness**
+
+Player movement and guard investigation already use collision checks, but ordinary patrol movement does not.
+
+Currently guards move directly between waypoints.
+
+We should eventually make patrol navigation respect the same geometry as the player. Otherwise guards can walk through buildings and obstacles.
+
+I would not introduce a full navigation mesh yet. For this scale of game, waypoint paths with collision-aware movement are sufficient initially.
+
+### **C. Mission schema needs tightening**
+
+`mission.json` already contains objectives, routes, coordinate-space metadata and identifiers.
+
+However, the current `Mission` structure doesn't yet represent all those fields.
+
+We should bring the schema and runtime model into alignment, and validate mission data during loading.
+
+In particular:
+
+- Invalid or missing spawn positions.
+- Patrol waypoints inside buildings.
+- Unreachable extraction points.
+- Invalid wall openings.
+- Missing objective definitions.
+
+### **D. Awareness and investigation need another iteration**
+
+The existing three states are a good starting point:
+
+- UNAWARE
+- SUSPICIOUS
+- ALERTED
+
+But we need to distinguish between what a guard perceives and what the guard believes.
+
+For example:
+
+A guard might see something suspicious, walk towards it, find nothing, and eventually return to patrol.
+
+An alerted guard might investigate the last known position, search the area, and then return to a heightened state of vigilance.
+
+That distinction will become central to the gameplay.
+
+## **3. Proposed development roadmap**
+
+I'd organise the next development stages around gameplay milestones rather than technical subsystems.
+
+[commandos-behind-enemy-lines-windows-screenshot-green-lights - Arcade Attack](https://images.openai.com/static-rsc-4/z0661VvpkPhQXhHq_jCTTSxRVyNggn3ie3Vmv6llAonyKdkAaU4rBaafN2A7x1q4UjsMbOwfSTBHDROePOVxBHPJOokl-Oz85A06YSf0x527aWRV0omqYZPM0InVHk3Zx8BUgi-5csKcI6dcnKVObaOdTcuZolKda_4dJ7XpxD0?purpose=inline)
+
+**Milestone 1 — Convincing guard behaviour**
+
+Next
+
+Simulation, perception and AI
+
+- Separate simulation and rendering.
+- Fix patrol collision.
+- Improve guard state transitions.
+- Add return-to-patrol behaviour.
+- Make awareness visible to the player.
+
+[Commandos: Behind Enemy Lines :: Gallery :: DJ OldGames](https://images.openai.com/static-rsc-4/wWvhX5TYxSnQWzWwaOSjQgLgGd3lXHnHa6wRuEpqnMt31Zpvyzs799ZKShjtxWKwEawXllGcnHePmeLzl9BLmYEKabvPcFGowxx-2OKaqEeOPP7IhRiblnqvXlHvYFtX25uHlcvAFqimuAFjIKnShuxqgL5eTJuqJwd-BJ82AiI?purpose=inline)
+
+**Milestone 2 — Tactical stealth**
+
+Player interaction and meaningful choices
+
+- Line-of-sight and occlusion.
+- Concealment and cover.
+- Crouching or stance changes.
+- Distraction mechanics.
+- Guard investigation of sounds.
+
+[Commandos: Behind Enemy Lines](https://images.openai.com/static-rsc-4/GdlT3kj4DEbDs5ZJ7cugYhQk6RinMtubQcUelBRLbyo6hfBVtpW9lT7qDZxHp_nVuXNsTfUeyRSOYujzEgwWLbJc79J3X5eAWEiYOO7TNUYbY2I-1vWEQNmpxeHhv7fqM8RVUv9cK876CZN-xzBLHMAQaT3d5WfWwXS16JvH8tI?purpose=inline)
+
+**Milestone 3 — Playable mission**
+
+Actual gameplay loop
+
+- Objective interaction.
+- Pick-up and carry documents.
+- Extraction detection.
+- Mission success/failure.
+- Basic mission restart.
+
+[Commandos 2: Men of Courage (Windows) - My Abandonware](https://images.openai.com/static-rsc-4/FdVmseyCe68ODFHP_N9gmV7G1oiKutS7wGSubgTcLCGf-t14vvFXrO4bXTJmS5xo59zSmDXL7fhyl9i_bTuuV-kMP3WweibUp-XDI08w1zGkg0pv-D4mJzWFXR0QW5-OFoc0nlDadNo7FJOIzy4iDg865OkaojJkZc0ceYeL4u4?purpose=inline)
+
+**Milestone 4 — Visual identity**
+
+From greybox to atmosphere
+
+- Terrain and environmental materials.
+- Lighting and shadows.
+- Vegetation and architectural detail.
+- Character silhouettes and animation.
+- Atmospheric effects.
+
+[Marble](https://images.openai.com/static-rsc-4/bRXl5egO2q8lqc43EnNXHiFNDWkjglfwHz8LLWe1r_s8waMOD-TfoNYcEGMfVPkkk2N8h7hiSO3jD8AZ5qAs0Zn4twO9Oz586FRqxAFUxH8aMp4ATF97uKDN2ulYthU-_WQ652gFmRJPVPLda2x48lpsrWQ2pYmNWI6ODit-edI?purpose=inline)
+
+**Milestone 5 — Gaussian Splatting renderer**
+
+Introduce the new medium
+
+- Static Gaussian environment rendering.
+- OSPZ asset integration.
+- Depth and collision compatibility.
+- Hybrid Raylib and Gaussian rendering.
+- Evaluate 4DGS for animated environments.
+
+## **4. The most important design decision: tactical readability**
+
+I think this is where we should be particularly careful.
+
+The original Commandos games were successful because players could understand the tactical situation.
+
+A guard wasn't just an NPC with a vision cone. He was a predictable but exploitable part of a larger tactical puzzle.
+
+We should eventually expose three distinct layers of information:
+
+| Layer      | What it means                            |
+| ---------- | ---------------------------------------- |
+| Perception | What the guard can currently see or hear |
+| Awareness  | What the guard suspects or knows         |
+| Behaviour  | What the guard decides to do             |
+
+These should remain separate systems.
+
+For example, losing sight of the player shouldn't immediately make a guard forget where he was last seen.
+
+Similarly, a suspicious guard shouldn't automatically know where the player is.
+
+That gives us the beginnings of interesting stealth gameplay.
+
+## **5. What I would implement next**
+
+My recommendation is to tackle **Guard Behaviour v2** before introducing new player abilities.
+
+I would break it into four small iterations.
+
+**Iteration 1 — Simulation update refactor**
+
+- Move all state mutation out of rendering.
+- Establish a consistent update order.
+- Ensure perception updates before guard decisions.
+- Keep rendering purely observational.
+
+**Iteration 2 — Complete guard state machine**
+
+I'd introduce these states:
+
+UNAWARE
+
+Normal patrol behaviour
+
+SUSPICIOUS
+
+Investigate unusual activity
+
+ALERTED
+
+Chase last known position and search
+
+SEARCHING
+
+Search area, then return to patrol
+
+UNAWARE
+
+Resume normal patrol
+
+We can retain the current enum initially and add the missing behaviour without prematurely introducing a complicated hierarchical state machine.
+
+**Iteration 3 — Visual perception**
+
+- Vision range.
+- Field of view.
+- Building and wall occlusion.
+- Cover occlusion.
+- Detection accumulation.
+- Last-known-position tracking.
+
+**Iteration 4 — Player feedback**
+
+The player should be able to understand the guards' intentions:
+
+- Suspicion indicators.
+- Visual awareness feedback.
+- Search behaviour.
+- Guard facing and attention.
+- Eventually, selectable guard inspection.
+
+We should make this playable before adding sound distractions or elaborate animations.
+
+## **6. Architectural direction**
+
+One thing I would establish now is a relatively small separation of responsibilities.
+
+```
+commandos/
+├── main.odin
+├── game.odin
+├── player.odin
+├── mission.odin
+├── collision.odin
+├── guards.odin
+├── awareness.odin
+├── perception.odin
+├── navigation.odin
+├── interaction.odin
+├── rendering.odin
+├── isometric/
+│   └── iso.odin
+├── mission.json
+└── *_test.odin
+```
+
+This is a target organisation, not a request to restructure everything immediately.
+
+I'd move code into these modules as the corresponding functionality becomes necessary.
+
+In particular, I would keep collision and mission geometry independent of the renderer. That will become very useful when we introduce Gaussian environments.
+
+The renderer should not own the world.
+
+## **7. What about Gaussian Splatting?**
+
+I would deliberately postpone it until Milestone 4, but design the interfaces with it in mind.
+
+The interesting opportunity isn't simply replacing cubes with Gaussian splats.
+
+It's combining:
+
+- Gaussian splats for rich environmental appearance.
+- Conventional geometry for collision and navigation.
+- Conventional meshes for characters and interactive objects.
+- 4D Gaussian Splatting for potentially animated environmental elements.
+
+That hybrid approach could give us the painterly, almost photographic environments we're after without sacrificing the tactical precision that makes Commandos work.
+
+And our existing OSPZ work gives us a potential asset pipeline rather than starting from scratch.
+
+## **8. Immediate next step**
+
+My recommendation
+
+**Let's implement Guard Behaviour v2, starting with the simulation update refactor.**
+
+I'd use the following acceptance criteria:
+
+1. Rendering never modifies gameplay state.
+2. Guards cannot walk through mission geometry.
+3. Patrols remain deterministic.
+4. Guards remember their last known player position.
+5. Guards investigate and search.
+6. Guards can eventually resume their patrol.
+7. All state transitions have automated tests.
+
+Once that's working, we'll have something much more interesting than a greybox environment: a small, functioning stealth simulation.
+
+**One guiding principle for the entire project:** build a game that would be fun with primitive cubes first. Then make those cubes beautiful with Gaussian Splatting.
+
+That's the fastest route to a Commandos-worthy sequel.
