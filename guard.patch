@@ -1,0 +1,156 @@
+
+diff --git a/guards.odin b/guards.odin
+--- a/guards.odin
++++ b/guards.odin
+@@ -10,6 +10,14 @@
+ Guard :: struct {
+     id: string,
+     position: Mission_Point,
+     facing: Mission_Point,
+     patrol: []Mission_Point,
+     awareness: Guard_Awareness,
+     target_index: int,
+     speed: f32,
+     pause_duration: f32,
+     pause_remaining: f32,
+     radius: f32,
++    player_visible: bool,
++    searching: bool,
++    search_pause_remaining: f32,
++    search_base_facing: Mission_Point,
++    search_angle: f32,
++    search_direction: f32,
++    search_sweeps_completed: int,
+ }
+ 
+ GUARD_DEFAULT_SPEED :: 3.5
+ GUARD_DEFAULT_PAUSE :: 1.0
+ GUARD_RADIUS :: 0.8
++GUARD_SEARCH_PAUSE :: 0.75
++GUARD_SEARCH_HALF_ANGLE :: 1.2217305
++GUARD_SEARCH_ANGULAR_SPEED :: 1.5707963
++GUARD_SEARCH_SWEEPS :: 2
++
++guard_search_begin :: proc(guard: ^Guard) {
++    guard.searching = true
++    guard.search_pause_remaining = GUARD_SEARCH_PAUSE
++    guard.search_base_facing = guard.facing
++    guard.search_angle = 0
++    guard.search_direction = -1
++    guard.search_sweeps_completed = 0
++}
++
++guard_search_update :: proc(guard: ^Guard, dt: f32) {
++    if !guard.searching || dt <= 0 {
++        return
++    }
++
++    if guard.search_pause_remaining > 0 {
++        guard.search_pause_remaining = max(
++            0,
++            guard.search_pause_remaining - dt,
++        )
++        return
++    }
++
++    guard.search_angle +=
++        guard.search_direction * GUARD_SEARCH_ANGULAR_SPEED * dt
++
++    if guard.search_angle <= -GUARD_SEARCH_HALF_ANGLE {
++        guard.search_angle = -GUARD_SEARCH_HALF_ANGLE
++        guard.search_direction = 1
++    } else if guard.search_angle >= GUARD_SEARCH_HALF_ANGLE {
++        guard.search_angle = GUARD_SEARCH_HALF_ANGLE
++        guard.search_direction = -1
++        guard.search_sweeps_completed += 1
++
++        if guard.search_sweeps_completed >= GUARD_SEARCH_SWEEPS {
++            guard.searching = false
++            guard.facing = guard.search_base_facing
++            return
++        }
++    }
++
++    c := math.cos(guard.search_angle)
++    s := math.sin(guard.search_angle)
++    guard.facing = {
++        guard.search_base_facing.x*c - guard.search_base_facing.y*s,
++        guard.search_base_facing.x*s + guard.search_base_facing.y*c,
++    }
++}
+@@
+ guard_investigate_update :: proc(
+     guard: ^Guard,
+     mission: ^Mission,
+     dt: f32,
+ ) {
+@@
+     target := guard.awareness.last_known_player_position
+ 
+     dx := target.x - guard.position.x
+     dy := target.y - guard.position.y
+     distance := math.sqrt(dx*dx + dy*dy)
+ 
+-    // Close enough: hold the last-known position.
++    // Reacquisition cancels the search. The awareness system has
++    // already refreshed the last-known position.
++    if guard.player_visible {
++        guard.searching = false
++        guard.search_pause_remaining = 0
++        guard.search_sweeps_completed = 0
++    }
++
++    // Reached the last-known position: pause and scan.
+     if distance <= 0.15 {
++        if !guard.player_visible {
++            if !guard.searching {
++                guard_search_begin(guard)
++            }
++            guard_search_update(guard, dt)
++        }
+         return
+     }
+ 
++    // The target changed after reacquisition; resume pursuit.
++    guard.searching = false
++    guard.search_pause_remaining = 0
++
+     step := min(guard.speed * dt, distance)
+@@
+ }
+diff --git a/awareness.odin b/awareness.odin
+--- a/awareness.odin
++++ b/awareness.odin
+@@
+ ) {
+-    if dt <= 0 || awareness.state == .ALERTED {
++    if dt <= 0 {
+         return
+     }
+ 
++    // Alerted guards retain their alert state, but continue updating
++    // the target whenever they see the player again.
++    if awareness.state == .ALERTED {
++        if sees_player {
++            awareness.last_known_player_position = player_position
++        }
++        return
++    }
++
+diff --git a/main.odin b/main.odin
+--- a/main.odin
++++ b/main.odin
+@@
+             sees_player := guard_can_see(
+                 guard.position,
+                 guard.facing,
+                 player_point,
+                 &mission,
+                 vision,
+             )
+ 
++            guard.player_visible = sees_player
++
+             guard_awareness_update(
+                 &guard.awareness,
+                 sees_player,
