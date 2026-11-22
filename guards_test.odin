@@ -226,3 +226,67 @@ test_suspicious_guard_finishes_noise_search_and_resets :: proc(t: ^testing.T) {
     testing.expect(t, guards[0].awareness.last_known_source == .NONE)
     testing.expect(t, !guards[0].searching)
 }
+
+@(test)
+test_guard_hears_footstep_and_becomes_suspicious :: proc(t: ^testing.T) {
+    guard := Guard{
+        position = {2, 0},
+        awareness = guard_awareness_init(),
+        hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
+    }
+    footstep := Noise_Event{
+        position = {0, 0},
+        radius = 10,
+        intensity = 1,
+    }
+
+    guard_hear_noise(&guard, footstep)
+
+    testing.expect(t, guard.awareness.state == .SUSPICIOUS)
+    testing.expect(t, guard.awareness.last_known_source == .SOUND)
+    testing.expect(t, guard.awareness.last_known_position.x == 0)
+    testing.expect(t, guard.awareness.last_known_position.y == 0)
+}
+
+@(test)
+test_guard_does_not_hear_distant_footstep :: proc(t: ^testing.T) {
+    guard := Guard{
+        position = {20, 0},
+        awareness = guard_awareness_init(),
+        hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
+    }
+    footstep := Noise_Event{
+        position = {0, 0},
+        radius = 10,
+        intensity = 1,
+    }
+
+    guard_hear_noise(&guard, footstep)
+
+    testing.expect(t, guard.awareness.state == .UNAWARE)
+    testing.expect(t, guard.awareness.last_known_source == .NONE)
+}
+
+@(test)
+test_guard_does_not_let_noise_override_visual_position :: proc(t: ^testing.T) {
+    guard := Guard{
+        position = {2, 0},
+        awareness = Guard_Awareness{
+            state = .SUSPICIOUS,
+            last_known_position = {4, 5},
+            last_known_source = .SIGHT,
+        },
+        hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
+    }
+    footstep := Noise_Event{
+        position = {0, 0},
+        radius = 10,
+        intensity = 1,
+    }
+
+    guard_hear_noise(&guard, footstep)
+
+    testing.expect(t, guard.awareness.last_known_source == .SIGHT)
+    testing.expect(t, guard.awareness.last_known_position.x == 4)
+    testing.expect(t, guard.awareness.last_known_position.y == 5)
+}

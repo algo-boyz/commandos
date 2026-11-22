@@ -44,7 +44,7 @@ guard_awareness_hear_noise :: proc(
     awareness: ^Guard_Awareness,
     noise_position: Mission_Point,
 ) {
-    if awareness.state == .ALERTED {
+    if awareness.state == .ALERTED || awareness.last_known_source == .SIGHT {
         return
     }
 

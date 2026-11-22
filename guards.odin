@@ -13,6 +13,7 @@ Guard :: struct {
     pause_duration: f32,
     pause_remaining: f32,
     radius: f32,
+    hearing_threshold: f32,
     player_visible: bool,
     searching: bool,
     search_pause_remaining: f32,
@@ -26,6 +27,7 @@ Guard :: struct {
 GUARD_DEFAULT_SPEED :: 3.5
 GUARD_DEFAULT_PAUSE :: 1.0
 GUARD_RADIUS :: 0.8
+GUARD_DEFAULT_HEARING_THRESHOLD :: 0.2
 GUARD_SEARCH_PAUSE :: 0.75
 GUARD_SEARCH_HALF_ANGLE :: 1.2217305
 GUARD_SEARCH_ANGULAR_SPEED :: 1.5707963
@@ -110,6 +112,7 @@ guards_init :: proc(mission: ^Mission) -> []Guard {
             speed = speed,
             pause_duration = pause,
             radius = GUARD_RADIUS,
+            hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
         }
     }
     return guards
@@ -202,6 +205,30 @@ guard_investigate_update :: proc(
     }
 
     guard.facing = {direction_x, direction_y}
+}
+
+guard_hear_noise :: proc(guard: ^Guard, noise: Noise_Event) {
+    if guard.awareness.state == .ALERTED {
+        return
+    }
+    if !guard_can_hear(guard.position, noise, guard.hearing_threshold) {
+        return
+    }
+
+    previous_source := guard.awareness.last_known_source
+    guard_awareness_hear_noise(&guard.awareness, noise.position)
+
+    // A new audible event restarts an unfinished sound search. A visual
+    // last-known position is never replaced by a later noise event.
+    if guard.awareness.last_known_source == .SOUND &&
+       (previous_source != .SOUND ||
+        guard.awareness.last_known_position.x != noise.position.x ||
+        guard.awareness.last_known_position.y != noise.position.y) {
+        guard.searching = false
+        guard.search_complete = false
+        guard.search_pause_remaining = 0
+        guard.search_sweeps_completed = 0
+    }
 }
 
 guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {

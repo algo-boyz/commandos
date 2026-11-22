@@ -5,6 +5,10 @@ import "core:math"
 import rl "vendor:raylib"
 import iso "isometric"
 
+PLAYER_FOOTSTEP_INTERVAL :: 0.45
+PLAYER_FOOTSTEP_NOISE_RADIUS :: 18.0
+PLAYER_FOOTSTEP_NOISE_INTENSITY :: 1.0
+
 Player :: struct {
     position: rl.Vector3,
     velocity: rl.Vector3,
@@ -13,6 +17,7 @@ Player :: struct {
     move_speed: f32,
     acceleration: f32,
     deceleration: f32,
+    footstep_timer: f32,
 }
 
 player_init :: proc(position: rl.Vector3) -> Player {
@@ -23,6 +28,7 @@ player_init :: proc(position: rl.Vector3) -> Player {
         move_speed = 12.0,
         acceleration = 36.0,
         deceleration = 48.0,
+        footstep_timer = 0,
     }
 }
 
@@ -92,6 +98,14 @@ player_update :: proc(p: ^Player, mission: ^Mission, dt: f32) {
     // Keep the player inside the mission area.
     p.position.x = math.clamp(p.position.x, p.radius, 100 - p.radius)
     p.position.z = math.clamp(p.position.z, p.radius, 100 - p.radius)
+
+    // Footsteps are emitted at a fixed cadence while moving.
+    speed := math.sqrt(p.velocity.x*p.velocity.x + p.velocity.z*p.velocity.z)
+    if speed > 0.5 {
+        p.footstep_timer -= dt
+    } else {
+        p.footstep_timer = 0
+    }
 }
 
 main :: proc() {
@@ -126,6 +140,24 @@ main :: proc() {
         vision := VISION_DEFAULT
         awareness_config := AWARENESS_DEFAULT
         player_point := Mission_Point{player.position.x, player.position.z}
+
+        // Emit one footstep event per cadence interval. Each guard evaluates
+        // the event once; visual perception below has priority over sound.
+        player_speed := math.sqrt(
+            player.velocity.x*player.velocity.x +
+            player.velocity.z*player.velocity.z,
+        )
+        if player_speed > 0.5 && player.footstep_timer <= 0 {
+            footstep := Noise_Event{
+                position = {player.position.x, player.position.z},
+                radius = PLAYER_FOOTSTEP_NOISE_RADIUS,
+                intensity = PLAYER_FOOTSTEP_NOISE_INTENSITY,
+            }
+            player.footstep_timer = PLAYER_FOOTSTEP_INTERVAL
+            for i in 0..<len(guards) {
+                guard_hear_noise(&guards[i], footstep)
+            }
+        }
 
         // 1. Perception and awareness.
         for i in 0..<len(guards) {
@@ -194,24 +226,6 @@ main :: proc() {
         // Guards
         for i in 0..<len(guards) {
             guard := &guards[i]
-
-            sees_player := guard_can_see(
-                guard.position,
-                guard.facing,
-                player_point,
-                &mission,
-                vision,
-            )
-
-            guard.player_visible = sees_player
-
-            guard_awareness_update(
-                &guard.awareness,
-                sees_player,
-                player_point,
-                dt,
-                awareness_config,
-            )
 
             guard_position := rl.Vector3{
                 guard.position.x,
