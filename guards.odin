@@ -343,7 +343,7 @@ guard_investigate_update :: proc(
     }
 
     guard_investigation_path_prepare(guard, mission, target)
-    
+
     dx_to_target := target.x - guard.position.x
     dy_to_target := target.y - guard.position.y
     distance_to_target := math.sqrt(
@@ -452,6 +452,37 @@ guard_hear_noise :: proc(guard: ^Guard, noise: Noise_Event) {
 
     previous_source := guard.awareness.last_known_source
     guard_awareness_hear_noise(&guard.awareness, noise.position)
+    
+    // Only turn toward noise if it became the active investigation target.
+    if guard.awareness.last_known_source == .SOUND &&
+       guard.awareness.last_known_position.x == noise.position.x &&
+       guard.awareness.last_known_position.y == noise.position.y {
+        dx := noise.position.x - guard.position.x
+        dy := noise.position.y - guard.position.y
+        direction_length := math.sqrt(dx*dx + dy*dy)
+
+        if direction_length > 0.0001 {
+            guard.facing = {
+                dx / direction_length,
+                dy / direction_length,
+            }
+        }
+    }
+
+    guard.facing = {
+        noise.position.x - guard.position.x,
+        noise.position.y - guard.position.y,
+    }
+
+    direction_length := math.sqrt(
+        guard.facing.x*guard.facing.x +
+        guard.facing.y*guard.facing.y,
+    )
+
+    if direction_length > 0.0001 {
+        guard.facing.x /= direction_length
+        guard.facing.y /= direction_length
+    }
 
     // A new audible event restarts an unfinished sound search. A visual
     // last-known position is never replaced by a later noise event.

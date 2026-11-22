@@ -356,6 +356,7 @@ test_guard_does_not_hear_distant_footstep :: proc(t: ^testing.T) {
 test_guard_does_not_let_noise_override_visual_position :: proc(t: ^testing.T) {
     guard := Guard{
         position = {2, 0},
+        facing = {1, 0},
         awareness = Guard_Awareness{
             state = .SUSPICIOUS,
             last_known_position = {4, 5},
@@ -374,6 +375,8 @@ test_guard_does_not_let_noise_override_visual_position :: proc(t: ^testing.T) {
     testing.expect(t, guard.awareness.last_known_source == .SIGHT)
     testing.expect(t, guard.awareness.last_known_position.x == 4)
     testing.expect(t, guard.awareness.last_known_position.y == 5)
+    testing.expect(t, guard.facing.x == 1)
+    testing.expect(t, guard.facing.y == 0)
 }
 
 @(test)
@@ -665,4 +668,27 @@ test_alerted_guard_does_not_move_toward_unreachable_target :: proc(
     testing.expect(t, guards[0].position.y == 10.5)
     testing.expect(t, guards[0].awareness.state == .ALERTED)
     testing.expect(t, !guards[0].searching)
+}
+
+@(test)
+test_guard_turns_toward_heard_noise :: proc(t: ^testing.T) {
+    guard := Guard{
+        position = {2, 2},
+        facing = {1, 0},
+        awareness = guard_awareness_init(),
+        hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
+    }
+
+    noise := Noise_Event{
+        position = {2, 8},
+        radius = 10,
+        intensity = 1,
+    }
+
+    guard_hear_noise(&guard, noise)
+
+    testing.expect(t, guard.awareness.state == .SUSPICIOUS)
+    testing.expect(t, guard.awareness.last_known_source == .SOUND)
+    testing.expect(t, guard.facing.x == 0)
+    testing.expect(t, guard.facing.y == 1)
 }
