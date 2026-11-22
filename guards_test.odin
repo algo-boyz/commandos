@@ -143,6 +143,7 @@ test_alerted_guard_enters_recovering_after_search :: proc(t: ^testing.T) {
     }
 
     guards := []Guard{guard}
+    defer delete(guards[0].patrol_path)
     mission := Mission{}
 
     for _ in 0..<70 {
@@ -171,6 +172,7 @@ test_alerted_guard_returns_to_patrol_after_search :: proc(t: ^testing.T) {
     }
 
     guards := []Guard{guard}
+    defer delete(guards[0].patrol_path)
     mission := Mission{}
 
     // Advance until the search transitions into recovery.
@@ -183,9 +185,14 @@ test_alerted_guard_returns_to_patrol_after_search :: proc(t: ^testing.T) {
 
     testing.expect(t, guards[0].awareness.state == .RECOVERING)
 
-    // Move to the selected patrol waypoint, then complete arrival.
-    guard_recover_update(&guards[0], &mission, 3.0)
-    guard_recover_update(&guards[0], &mission, 0.1)
+    // Allow recovery pathfinding to finish across multiple updates.
+    for _ in 0..<100 {
+        guard_update(guards, &mission, 0.1)
+
+        if guards[0].awareness.state == .UNAWARE {
+            break
+        }
+    }
 
     testing.expect(t, guards[0].awareness.state == .UNAWARE)
     testing.expect(t, guards[0].awareness.suspicion == 0)
