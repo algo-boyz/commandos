@@ -5,6 +5,7 @@ Guard_Awareness_State :: enum u8 {
     UNAWARE,
     SUSPICIOUS,
     ALERTED,
+    RECOVERING,
 }
 
 Last_Known_Source :: enum u8 {

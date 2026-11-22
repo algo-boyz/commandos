@@ -83,6 +83,35 @@ guard_search_update :: proc(guard: ^Guard, dt: f32) {
     }
 }
 
+
+guard_recovery_begin :: proc(guard: ^Guard) {
+    if len(guard.patrol) == 0 {
+        guard.awareness.state = .UNAWARE
+        guard.awareness.suspicion = 0
+        guard.awareness.last_known_source = .NONE
+        guard.search_complete = false
+        return
+    }
+
+    dx := guard.patrol[0].x - guard.position.x
+    dy := guard.patrol[0].y - guard.position.y
+    nearest_distance := dx*dx + dy*dy
+    nearest_index := 0
+
+    for i in 1..<len(guard.patrol) {
+        dx = guard.patrol[i].x - guard.position.x
+        dy = guard.patrol[i].y - guard.position.y
+        distance := dx*dx + dy*dy
+        if distance < nearest_distance {
+            nearest_distance = distance
+            nearest_index = i
+        }
+    }
+
+    guard.target_index = nearest_index
+    guard.search_complete = false
+}
+
 guards_init :: proc(mission: ^Mission) -> []Guard {
     guards := make([]Guard, len(mission.guards), context.allocator)
     for definition, i in mission.guards {
@@ -171,6 +200,13 @@ guard_investigate_update :: proc(
                     guard.awareness.suspicion = 0
                     guard.awareness.last_known_source = .NONE
                     guard.search_complete = false
+                } else if guard.search_complete &&
+                    guard.awareness.state == .ALERTED {
+                    // An alerted guard has finished searching the last
+                    // known position. Return to the nearest patrol point.
+                    guard.awareness.state = .RECOVERING
+                    guard_recovery_begin(guard)
+                    return
                 }
             }
         }
@@ -231,12 +267,73 @@ guard_hear_noise :: proc(guard: ^Guard, noise: Noise_Event) {
     }
 }
 
+
+guard_recover_update :: proc(
+    guard: ^Guard,
+    mission: ^Mission,
+    dt: f32,
+) {
+    if dt <= 0 || guard.speed <= 0 {
+        return
+    }
+
+    if len(guard.patrol) == 0 {
+        guard.awareness.state = .UNAWARE
+        guard.awareness.suspicion = 0
+        guard.awareness.last_known_source = .NONE
+        return
+    }
+
+    target := guard.patrol[guard.target_index]
+    dx := target.x - guard.position.x
+    dy := target.y - guard.position.y
+    distance := math.sqrt(dx*dx + dy*dy)
+
+    if distance <= 0.15 {
+        guard.position = target
+        guard.target_index = (guard.target_index + 1) % len(guard.patrol)
+        guard.pause_remaining = guard.pause_duration
+        guard.awareness.state = .UNAWARE
+        guard.awareness.suspicion = 0
+        guard.awareness.last_known_source = .NONE
+        return
+    }
+
+    step := min(guard.speed * dt, distance)
+    direction_x := dx / distance
+    direction_y := dy / distance
+
+    candidate := Mission_Point{
+        x = guard.position.x + direction_x * step,
+        y = guard.position.y,
+    }
+
+    if !mission_point_collides(mission, candidate, guard.radius) {
+        guard.position.x = candidate.x
+    }
+
+    candidate = Mission_Point{
+        x = guard.position.x,
+        y = guard.position.y + direction_y * step,
+    }
+
+    if !mission_point_collides(mission, candidate, guard.radius) {
+        guard.position.y = candidate.y
+    }
+
+    guard.facing = {direction_x, direction_y}
+}
+
 guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
     if dt <= 0 {
         return
     }
     for i in 0..<len(guards) {
         guard := &guards[i]
+        if guard.awareness.state == .RECOVERING {
+            guard_recover_update(guard, mission, dt)
+            continue
+        }
         if guard.awareness.state == .ALERTED ||
             (guard.awareness.state == .SUSPICIOUS &&
              guard.awareness.last_known_source == .SOUND) {

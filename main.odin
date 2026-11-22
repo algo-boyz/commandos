@@ -238,6 +238,8 @@ main :: proc() {
                 guard_color = rl.ORANGE
             } else if guard.awareness.state == .ALERTED {
                 guard_color = rl.MAROON
+            } else if guard.awareness.state == .RECOVERING {
+                guard_color = rl.DARKGRAY
             }
 
             rl.DrawSphere(guard_position, guard.radius, guard_color)

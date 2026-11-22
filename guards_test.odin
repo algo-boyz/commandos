@@ -128,7 +128,7 @@ test_alerted_guard_scans_left_and_right :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_alerted_guard_stays_alerted_after_search :: proc(t: ^testing.T) {
+test_alerted_guard_enters_recovering_after_search :: proc(t: ^testing.T) {
     guard := Guard{
         position = {0, 0},
         facing = {1, 0},
@@ -137,6 +137,7 @@ test_alerted_guard_stays_alerted_after_search :: proc(t: ^testing.T) {
             last_known_position = {0, 0},
         },
         speed = 2,
+        patrol = []Mission_Point{{5, 0}, {10, 0}},
         radius = GUARD_RADIUS,
     }
 
@@ -148,8 +149,47 @@ test_alerted_guard_stays_alerted_after_search :: proc(t: ^testing.T) {
     }
 
     testing.expect(t, !guards[0].searching)
-    testing.expect(t, guards[0].awareness.state == .ALERTED)
-    testing.expect(t, guards[0].position.x == 0)
+    testing.expect(t, guards[0].awareness.state == .RECOVERING)
+    testing.expect(t, guards[0].position.x > 0)
+    testing.expect(t, guards[0].position.x < 5)
+}
+
+@(test)
+test_alerted_guard_returns_to_patrol_after_search :: proc(t: ^testing.T) {
+    guard := Guard{
+        position = {0, 0},
+        facing = {1, 0},
+        awareness = Guard_Awareness{
+            state = .ALERTED,
+            last_known_position = {0, 0},
+            last_known_source = .SIGHT,
+        },
+        speed = 2,
+        patrol = []Mission_Point{{5, 0}, {10, 0}},
+        radius = GUARD_RADIUS,
+    }
+
+    guards := []Guard{guard}
+    mission := Mission{}
+
+    // Advance until the search transitions into recovery.
+    for _ in 0..<100 {
+        guard_update(guards, &mission, 0.1)
+        if guards[0].awareness.state == .RECOVERING {
+            break
+        }
+    }
+
+    testing.expect(t, guards[0].awareness.state == .RECOVERING)
+
+    // Move to the selected patrol waypoint, then complete arrival.
+    guard_recover_update(&guards[0], &mission, 3.0)
+    guard_recover_update(&guards[0], &mission, 0.1)
+
+    testing.expect(t, guards[0].awareness.state == .UNAWARE)
+    testing.expect(t, guards[0].awareness.suspicion == 0)
+    testing.expect(t, guards[0].awareness.last_known_source == .NONE)
+    testing.expect(t, guards[0].position.x == 5)
     testing.expect(t, guards[0].position.y == 0)
 }
 
