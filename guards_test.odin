@@ -400,5 +400,18 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
         guards[0].patrol_path_index,
         len(guards[0].patrol_path),
     )
+        fmt.printfln("  path_ready: %v", guards[0].patrol_path_ready)
+    fmt.printfln("  path_index: %d / %d",
+        guards[0].patrol_path_index,
+        len(guards[0].patrol_path),
+    )
+
+    if guards[0].patrol_path_index < len(guards[0].patrol_path) {
+        next := guards[0].patrol_path[guards[0].patrol_path_index]
+        fmt.printfln("  next node: %.2f, %.2f", next.x, next.y)
+        fmt.printfln("  next node blocked: %v",
+            mission_point_collides(&mission, next, guards[0].radius),
+        )
+    }
     testing.expect(t, reached_waypoint)
 }

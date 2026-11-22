@@ -444,65 +444,30 @@ guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
     if dt <= 0 {
         return
     }
+
     for i in 0..<len(guards) {
         guard := &guards[i]
+
         if guard.awareness.state == .RECOVERING {
             guard_recover_update(guard, mission, dt)
             continue
         }
+
         if guard.awareness.state == .ALERTED ||
-            (guard.awareness.state == .SUSPICIOUS &&
-             guard.awareness.last_known_source == .SOUND) {
+           (guard.awareness.state == .SUSPICIOUS &&
+            guard.awareness.last_known_source == .SOUND) {
             guard_investigate_update(guard, mission, dt)
             continue
         }
+
         if len(guard.patrol) < 2 || guard.speed <= 0 {
             continue
         }
-        guard_patrol_update(guard, mission, dt)
-        remaining_time := dt
 
-        // Consume the full frame time, including waypoint and pause boundaries.
-        for remaining_time > 0 {
-            if guard.pause_remaining > 0 {
-                consumed := remaining_time
-                if consumed > guard.pause_remaining {
-                    consumed = guard.pause_remaining
-                }
-                guard.pause_remaining -= consumed
-                remaining_time -= consumed
-                if remaining_time <= 0 {
-                    break
-                }
-            }
-            target := guard.patrol[guard.target_index]
-            dx := target.x - guard.position.x
-            dy := target.y - guard.position.y
-            distance := math.sqrt(dx*dx + dy*dy)
-            if distance <= 0.0001 {
-                guard_arrive(guard)
-                // Avoid an infinite loop if a route contains duplicate points.
-                if guard.pause_remaining <= 0 {
-                    guard.pause_remaining = 0.001
-                }
-                continue
-            }
-            travel_time := distance / guard.speed
-            if travel_time <= remaining_time {
-                guard.position = target
-                guard.facing = {dx / distance, dy / distance}
-                remaining_time -= travel_time
-                guard_arrive(guard)
-            } else {
-                fraction := (guard.speed * remaining_time) / distance
-                guard.position.x += dx * fraction
-                guard.position.y += dy * fraction
-                guard.facing = {dx / distance, dy / distance}
-                remaining_time = 0
-            }
-        }
+        guard_patrol_update(guard, mission, dt)
     }
 }
+
 
 guards_destroy :: proc(guards: []Guard) {
     for guard in guards {
