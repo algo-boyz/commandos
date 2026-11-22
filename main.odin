@@ -134,57 +134,9 @@ main :: proc() {
         if rl.IsKeyPressed(rl.KeyboardKey.F) {
             camera.follow_enabled = !camera.follow_enabled
         }
-
-        player_update(&player, &mission, dt)
-
-        vision := VISION_DEFAULT
-        awareness_config := AWARENESS_DEFAULT
-        player_point := Mission_Point{player.position.x, player.position.z}
-
-        // Emit one footstep event per cadence interval. Each guard evaluates
-        // the event once; visual perception below has priority over sound.
-        player_speed := math.sqrt(
-            player.velocity.x*player.velocity.x +
-            player.velocity.z*player.velocity.z,
-        )
-        if player_speed > 0.5 && player.footstep_timer <= 0 {
-            footstep := Noise_Event{
-                position = {player.position.x, player.position.z},
-                radius = PLAYER_FOOTSTEP_NOISE_RADIUS,
-                intensity = PLAYER_FOOTSTEP_NOISE_INTENSITY,
-            }
-            player.footstep_timer = PLAYER_FOOTSTEP_INTERVAL
-            for i in 0..<len(guards) {
-                guard_hear_noise(&guards[i], footstep)
-            }
-        }
-
-        // 1. Perception and awareness.
-        for i in 0..<len(guards) {
-            guard := &guards[i]
-
-            sees_player := guard_can_see(
-                guard.position,
-                guard.facing,
-                player_point,
-                &mission,
-                vision,
-            )
-
-            guard.player_visible = sees_player
-
-            guard_awareness_update(
-                &guard.awareness,
-                sees_player,
-                player_point,
-                dt,
-                awareness_config,
-            )
-        }
-
-        // 2. Behaviour reacts to the freshly updated awareness.
-        guard_update(guards, &mission, dt)
         
+        game_update(&player, guards, &mission, dt)
+       
         iso.camera_update(&camera, dt)
         iso.camera_follow(&camera, player.position, dt)
 
@@ -238,8 +190,6 @@ main :: proc() {
                 guard_color = rl.ORANGE
             } else if guard.awareness.state == .ALERTED {
                 guard_color = rl.MAROON
-            } else if guard.awareness.state == .RECOVERING {
-                guard_color = rl.DARKGRAY
             }
 
             rl.DrawSphere(guard_position, guard.radius, guard_color)

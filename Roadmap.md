@@ -267,3 +267,4 @@ Vertical slice v0.1
 And one beautiful Gaussian environment.
 
 That's the point where we find out whether we have the beginnings of something special.
+
