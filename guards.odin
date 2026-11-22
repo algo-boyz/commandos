@@ -62,12 +62,63 @@ guard_arrive :: proc(guard: ^Guard) {
     guard.pause_remaining = guard.pause_duration
 }
 
-guard_update :: proc(guards: []Guard, dt: f32) {
+
+guard_investigate_update :: proc(
+    guard: ^Guard,
+    mission: ^Mission,
+    dt: f32,
+) {
+    if dt <= 0 || guard.speed <= 0 {
+        return
+    }
+
+    target := guard.awareness.last_known_player_position
+
+    dx := target.x - guard.position.x
+    dy := target.y - guard.position.y
+    distance := math.sqrt(dx*dx + dy*dy)
+
+    // Close enough: hold the last-known position.
+    if distance <= 0.15 {
+        return
+    }
+
+    step := min(guard.speed * dt, distance)
+    direction_x := dx / distance
+    direction_y := dy / distance
+
+    // Resolve X and Y independently to allow sliding along obstacles.
+    candidate := Mission_Point{
+        x = guard.position.x + direction_x * step,
+        y = guard.position.y,
+    }
+
+    if !mission_point_collides(mission, candidate, guard.radius) {
+        guard.position.x = candidate.x
+    }
+
+    candidate = Mission_Point{
+        x = guard.position.x,
+        y = guard.position.y + direction_y * step,
+    }
+
+    if !mission_point_collides(mission, candidate, guard.radius) {
+        guard.position.y = candidate.y
+    }
+
+    guard.facing = {direction_x, direction_y}
+}
+
+guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
     if dt <= 0 {
         return
     }
     for i in 0..<len(guards) {
         guard := &guards[i]
+        if guard.awareness.state == .ALERTED {
+            guard_investigate_update(guard, mission, dt)
+            continue
+        }
         if len(guard.patrol) < 2 || guard.speed <= 0 {
             continue
         }

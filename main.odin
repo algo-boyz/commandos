@@ -122,7 +122,7 @@ main :: proc() {
         }
 
         player_update(&player, &mission, dt)
-        guard_update(guards, dt)
+        guard_update(guards, &mission, dt)
         
         iso.camera_update(&camera, dt)
         iso.camera_follow(&camera, player.position, dt)

@@ -139,10 +139,15 @@ wall_collides :: proc(wall: Mission_Wall, x, z, radius: f32) -> bool {
     )
 }
 
-mission_collides :: proc(mission: ^Mission, pos: rl.Vector3, radius: f32) -> bool {
+
+mission_point_collides :: proc(
+    mission: ^Mission,
+    point: Mission_Point,
+    radius: f32,
+) -> bool {
     for building in mission.buildings {
         if circle_hits_box(
-            pos.x, pos.z, radius,
+            point.x, point.y, radius,
             building.x, building.y,
             building.x + building.w, building.y + building.h,
         ) {
@@ -151,7 +156,7 @@ mission_collides :: proc(mission: ^Mission, pos: rl.Vector3, radius: f32) -> boo
     }
 
     for wall in mission.walls {
-        if wall_collides(wall, pos.x, pos.z, radius) {
+        if wall_collides(wall, point.x, point.y, radius) {
             return true
         }
     }
@@ -159,18 +164,35 @@ mission_collides :: proc(mission: ^Mission, pos: rl.Vector3, radius: f32) -> boo
     for item in mission.cover {
         if item.kind == "crate" {
             if circle_hits_box(
-                pos.x, pos.z, radius,
-                item.x, item.y, item.x + item.w, item.y + item.h,
+                point.x, point.y, radius,
+                item.x, item.y,
+                item.x + item.w, item.y + item.h,
             ) {
                 return true
             }
         } else if item.kind == "barrel" || item.kind == "tree" {
-            if circle_hits_circle(pos.x, pos.z, radius, item.x, item.y, item.r) {
+            if circle_hits_circle(
+                point.x, point.y, radius,
+                item.x, item.y, item.r,
+            ) {
                 return true
             }
         }
     }
+
     return false
+}
+
+mission_collides :: proc(
+    mission: ^Mission,
+    pos: rl.Vector3,
+    radius: f32,
+) -> bool {
+    return mission_point_collides(
+        mission,
+        Mission_Point{x = pos.x, y = pos.z},
+        radius,
+    )
 }
 
 mission_draw :: proc(mission: ^Mission) {
