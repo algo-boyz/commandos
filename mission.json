@@ -30,9 +30,37 @@
     { "type": "tree", "x": 82, "y": 86, "r": 3.5 }
   ],
   "guards": [
-    { "id": "guard-west", "patrol": [{ "x": 25, "y": 22 }, { "x": 25, "y": 48 }, { "x": 42, "y": 48 }] },
-    { "id": "guard-courtyard", "patrol": [{ "x": 46, "y": 36 }, { "x": 65, "y": 36 }, { "x": 65, "y": 54 }, { "x": 46, "y": 54 }] },
-    { "id": "guard-east", "patrol": [{ "x": 74, "y": 32 }, { "x": 82, "y": 48 }, { "x": 74, "y": 55 }] }
+    {
+      "id": "guard-west",
+      "speed": 3.2,
+      "pauseDuration": 1.0,
+      "patrol": [
+        {"x": 25, "y": 22},
+        {"x": 25, "y": 48},
+        {"x": 42, "y": 48}
+      ]
+    },
+    {
+      "id": "guard-courtyard",
+      "speed": 4.0,
+      "pauseDuration": 1.5,
+      "patrol": [
+        {"x": 46, "y": 36},
+        {"x": 65, "y": 36},
+        {"x": 65, "y": 54},
+        {"x": 46, "y": 54}
+      ]
+    },
+    {
+      "id": "guard-east",
+      "speed": 3.0,
+      "pauseDuration": 1.25,
+      "patrol": [
+        {"x": 74, "y": 32},
+        {"x": 82, "y": 48},
+        {"x": 74, "y": 55}
+      ]
+    }
   ],
   "routes": [
     { "id": "west-breach", "risk": "high", "points": [{ "x": 8, "y": 48 }, { "x": 20, "y": 48 }, { "x": 25, "y": 42 }, { "x": 35, "y": 40 }] },
