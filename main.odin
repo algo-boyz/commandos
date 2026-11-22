@@ -122,6 +122,35 @@ main :: proc() {
         }
 
         player_update(&player, &mission, dt)
+
+        vision := VISION_DEFAULT
+        awareness_config := AWARENESS_DEFAULT
+        player_point := Mission_Point{player.position.x, player.position.z}
+
+        // 1. Perception and awareness.
+        for i in 0..<len(guards) {
+            guard := &guards[i]
+
+            sees_player := guard_can_see(
+                guard.position,
+                guard.facing,
+                player_point,
+                &mission,
+                vision,
+            )
+
+            guard.player_visible = sees_player
+
+            guard_awareness_update(
+                &guard.awareness,
+                sees_player,
+                player_point,
+                dt,
+                awareness_config,
+            )
+        }
+
+        // 2. Behaviour reacts to the freshly updated awareness.
         guard_update(guards, &mission, dt)
         
         iso.camera_update(&camera, dt)
@@ -161,10 +190,6 @@ main :: proc() {
             16,
             rl.GREEN,
         )
-
-        vision := VISION_DEFAULT
-        awareness_config := AWARENESS_DEFAULT
-        player_point := Mission_Point{player.position.x, player.position.z}
 
         // Guards
         for i in 0..<len(guards) {
