@@ -54,27 +54,6 @@ The user pushed the changes & confirmed:
 
 `odin test .` — working.
 
-### Current greybox mission
-
-**Operation Eagle Nest**
-
-Mission coordinates use a normalized 0–100 top-down coordinate space.
-
-- Player spawn: (12, 82)
-- Extraction: (84, 88)
-- Barracks: (37, 12), size 28 × 19
-- Watchtower: (78, 25), size 8 × 8
-- Perimeter walls with a western breach.
-- Crates, barrels & trees provide cover.
-
-The mission JSON already defines three guard patrol routes:
-
-- `guard-west`
-- `guard-courtyard`
-- `guard-east`
-
-It also contains three possible player approach routes.
-
 ## 2. Latest development task: Guard patrols
 
 We agreed on the following sequence:
@@ -83,19 +62,6 @@ We agreed on the following sequence:
 2. Line of sight.
 3. Stealth awareness & detection.
 4. Eventually combat & mission objectives.
-
-The patrol implementation should remain independent of rendering & deterministic.
-
-### Guard state
-
-A new `guards.odin` file has been generated.
-
-It defines:
-
-- `Guard`
-- `guards_init`
-- `guard_arrive`
-- `guard_update`
 
 Features:
 
@@ -160,3 +126,21 @@ Use Odin syntax & when possible, add tests before or alongside simulation featur
 - Sound propagation.
 
 ---
+
+Excellent. All 12 tests pass, and the observed behavior is exactly what we intended: guards investigate the last-known position, not the player's current position.
+
+That gives us an important stealth mechanic:
+1. A guard spots the player.
+2. Suspicion builds until the guard becomes alerted.
+3. The player escapes behind cover.
+4. The guard moves to the last position where the player was seen.
+5. The guard stops there, even if the player has moved elsewhere.
+I'd preserve this behavior. It creates the foundation for stealth and evasion without making guards omniscient.
+I'd suggest a small extension:
+- When a guard reaches the last-known position, it pauses briefly.
+- It scans left and right, rotating its facing direction.
+- If it sees the player again, it updates the last-known position and resumes pursuit.
+- If it doesn't, it remains alerted for now.
+This gives us believable guard behavior before introducing coordinated alarms or combat.
+
+One question before implementing it: should guards eventually return to their patrol after searching unsuccessfully, or remain alerted indefinitely in this first version?
