@@ -692,3 +692,155 @@ test_guard_turns_toward_heard_noise :: proc(t: ^testing.T) {
     testing.expect(t, guard.facing.x == 0)
     testing.expect(t, guard.facing.y == 1)
 }
+
+@(test)
+test_guard_visible_pursuit_uses_direct_steering :: proc(t: ^testing.T) {
+    guard := Guard{
+        position = {0.2, 0.2},
+        facing = {1, 0},
+        awareness = Guard_Awareness{
+            state = .ALERTED,
+            last_known_position = {5.8, 0.2},
+            last_known_source = .SIGHT,
+        },
+        speed = 2,
+        radius = GUARD_RADIUS,
+        player_visible = true,
+    }
+
+    guards := []Guard{guard}
+    defer delete(guards[0].investigation_path)
+    defer delete(guards[0].patrol_path)
+
+    mission := Mission{}
+
+    guard_update(guards, &mission, 0.1)
+
+    testing.expect(t, guards[0].position.x > 0.2)
+    testing.expect(t, guards[0].position.y == 0.2)
+    testing.expect(t, guards[0].facing.x > 0.99)
+    testing.expect(t, !guards[0].investigation_path_ready)
+}
+
+@(test)
+test_guard_visible_pursuit_does_not_jitter_when_target_moves :: proc(
+    t: ^testing.T,
+) {
+    guard := Guard{
+        position = {0.2, 0.2},
+        facing = {1, 0},
+        awareness = Guard_Awareness{
+            state = .ALERTED,
+            last_known_position = {5.8, 0.2},
+            last_known_source = .SIGHT,
+        },
+        speed = 2,
+        radius = GUARD_RADIUS,
+        player_visible = true,
+    }
+
+    guards := []Guard{guard}
+    defer delete(guards[0].investigation_path)
+    defer delete(guards[0].patrol_path)
+
+    mission := Mission{}
+
+    previous_x := guards[0].position.x
+
+    for i in 0..<30 {
+        // Simulate a player continuously moving to the right.
+        guards[0].awareness.last_known_position = {
+            5.8 + f32(i) * 0.1,
+            0.2,
+        }
+
+        guard_update(guards, &mission, 0.05)
+
+        testing.expect(t, guards[0].position.x >= previous_x)
+        testing.expect(t, guards[0].facing.x > 0)
+
+        previous_x = guards[0].position.x
+    }
+
+    testing.expect(t, guards[0].position.x > 2)
+    testing.expect(t, !guards[0].investigation_path_ready)
+}
+
+@(test)
+test_navigation_path_preserves_exact_start_position :: proc(
+    t: ^testing.T,
+) {
+    mission := Mission{}
+
+    start := Mission_Point{0.2, 0.2}
+    goal := Mission_Point{5.5, 0.5}
+
+    path := nav_find_path(
+        &mission,
+        start,
+        goal,
+        GUARD_RADIUS,
+    )
+    defer delete(path.points)
+
+    testing.expect(t, path.found)
+    testing.expect(t, len(path.points) > 0)
+
+    testing.expect(t, path.points[0].x == start.x)
+    testing.expect(t, path.points[0].y == start.y)
+}
+
+@(test)
+test_guard_visible_pursuit_uses_navigation_around_obstacle :: proc(
+    t: ^testing.T,
+) {
+    mission := Mission{
+        buildings = {
+            Mission_Rect{
+                x = 2,
+                y = -1,
+                w = 1,
+                h = 2,
+            },
+        },
+    }
+
+    guard := Guard{
+        position = {0, 0},
+        facing = {1, 0},
+        awareness = Guard_Awareness{
+            state = .ALERTED,
+            last_known_position = {5, 0},
+            last_known_source = .SIGHT,
+        },
+        speed = 2,
+        radius = GUARD_RADIUS,
+        player_visible = true,
+    }
+
+    guards := []Guard{guard}
+    defer delete(guards[0].investigation_path)
+    defer delete(guards[0].patrol_path)
+
+    routed_around := false
+
+    for _ in 0..<500 {
+        guard_update(guards, &mission, 0.05)
+
+        testing.expect(
+            t,
+            !mission_point_collides(
+                &mission,
+                guards[0].position,
+                guards[0].radius,
+            ),
+        )
+
+        if abs(guards[0].position.y) > 1.5 {
+            routed_around = true
+            break
+        }
+    }
+
+    testing.expect(t, routed_around)
+}

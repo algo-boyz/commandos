@@ -333,13 +333,43 @@ guard_investigate_update :: proc(
 
     target := guard.awareness.last_known_position
 
-    // Reacquisition cancels the search. Awareness has already
-    // refreshed the last-known position.
     if guard.player_visible {
         guard.searching = false
         guard.search_complete = false
         guard.search_pause_remaining = 0
         guard.search_sweeps_completed = 0
+
+        // Pursuit is steering, not investigation.
+        // Do not rebuild an A* path every time the player moves.
+        dx := target.x - guard.position.x
+        dy := target.y - guard.position.y
+        distance := math.sqrt(dx*dx + dy*dy)
+
+        if distance <= 0.0001 {
+            return
+        }
+
+        direction := Mission_Point{
+            x = dx / distance,
+            y = dy / distance,
+        }
+
+        step := min(guard.speed * dt, distance)
+
+        candidate := Mission_Point{
+            x = guard.position.x + direction.x * step,
+            y = guard.position.y + direction.y * step,
+        }
+
+        // Pursue directly when the next movement is unobstructed.
+        if !mission_point_collides(mission, candidate, guard.radius) {
+            guard.position = candidate
+            guard.facing = direction
+            return
+        }
+
+        // A direct pursuit step is blocked. Fall through to
+        // obstacle-aware A* navigation below.
     }
 
     guard_investigation_path_prepare(guard, mission, target)

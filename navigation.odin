@@ -142,6 +142,13 @@ nav_find_path :: proc(
                 result.points[i] = reverse_path[len(reverse_path)-1-i]
             }
 
+            // Preserve the exact starting position. The A* search operates on
+            // grid cells, but movement must not snap the guard back to the
+            // centre of its current cell after a route is recalculated.
+            if len(result.points) > 0 {
+                result.points[0] = start
+            }
+
             result.found = true
             return result
         }
