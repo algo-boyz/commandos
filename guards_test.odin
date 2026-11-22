@@ -143,7 +143,7 @@ test_alerted_guard_stays_alerted_after_search :: proc(t: ^testing.T) {
     guards := []Guard{guard}
     mission := Mission{}
 
-    for _ in 0..<60 {
+    for _ in 0..<70 {
         guard_update(guards, &mission, 0.1)
     }
 

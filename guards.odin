@@ -20,6 +20,7 @@ Guard :: struct {
     search_angle: f32,
     search_direction: f32,
     search_sweeps_completed: int,
+    search_complete: bool,
 }
 
 GUARD_DEFAULT_SPEED :: 3.5
@@ -37,6 +38,7 @@ guard_search_begin :: proc(guard: ^Guard) {
     guard.search_angle = 0
     guard.search_direction = -1
     guard.search_sweeps_completed = 0
+    guard.search_complete = false
 }
 
 guard_search_update :: proc(guard: ^Guard, dt: f32) {
@@ -65,6 +67,7 @@ guard_search_update :: proc(guard: ^Guard, dt: f32) {
 
         if guard.search_sweeps_completed >= GUARD_SEARCH_SWEEPS {
             guard.searching = false
+            guard.search_complete = true
             guard.facing = guard.search_base_facing
             return
         }
@@ -141,6 +144,7 @@ guard_investigate_update :: proc(
     // already refreshed the last-known position.
     if guard.player_visible {
         guard.searching = false
+        guard.search_complete = false
         guard.search_pause_remaining = 0
         guard.search_sweeps_completed = 0
     }
@@ -148,16 +152,19 @@ guard_investigate_update :: proc(
     // Reached the last-known position: pause and scan.
     if distance <= 0.15 {
         if !guard.player_visible {
-            if !guard.searching {
+            if !guard.searching && !guard.search_complete {
                 guard_search_begin(guard)
             }
-            guard_search_update(guard, dt)
+
+            if guard.searching {
+                guard_search_update(guard, dt)
+            }
         }
         return
     }
-
     // The target changed after reacquisition; resume pursuit.
     guard.searching = false
+    guard.search_complete = false
     guard.search_pause_remaining = 0
 
     step := min(guard.speed * dt, distance)
