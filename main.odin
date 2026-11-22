@@ -178,6 +178,8 @@ main :: proc() {
                 vision,
             )
 
+            guard.player_visible = sees_player
+
             guard_awareness_update(
                 &guard.awareness,
                 sees_player,

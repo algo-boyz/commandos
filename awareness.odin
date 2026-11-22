@@ -41,7 +41,16 @@ guard_awareness_update :: proc(
     dt: f32,
     config: Awareness_Config,
 ) {
-    if dt <= 0 || awareness.state == .ALERTED {
+    if dt <= 0 {
+        return
+    }
+
+    // Alerted guards retain their alert state, but continue updating
+    // the target whenever they see the player again.
+    if awareness.state == .ALERTED {
+        if sees_player {
+            awareness.last_known_player_position = player_position
+        }
         return
     }
 
