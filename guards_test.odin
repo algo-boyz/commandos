@@ -330,3 +330,61 @@ test_guard_does_not_let_noise_override_visual_position :: proc(t: ^testing.T) {
     testing.expect(t, guard.awareness.last_known_position.x == 4)
     testing.expect(t, guard.awareness.last_known_position.y == 5)
 }
+
+@(test)
+test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
+    mission := Mission{
+        cover = {
+            Mission_Cover{
+                kind = "crate",
+                x = 33,
+                y = 42,
+                w = 4,
+                h = 3,
+            },
+            Mission_Cover{
+                kind = "crate",
+                x = 38,
+                y = 45,
+                w = 4,
+                h = 3,
+            },
+        },
+    }
+
+    guard := Guard{
+        position = {25, 48},
+        patrol = []Mission_Point{
+            {25, 48},
+            {43.5, 49.5},
+        },
+        target_index = 1,
+        speed = 3.2,
+        radius = GUARD_RADIUS,
+    }
+
+    guards := []Guard{guard}
+    defer delete(guards[0].patrol_path)
+
+    reached_waypoint := false
+
+    for _ in 0..<1000 {
+        guard_update(guards, &mission, 0.05)
+
+        testing.expect(
+            t,
+            !mission_point_collides(
+                &mission,
+                guards[0].position,
+                guards[0].radius,
+            ),
+        )
+
+        if guards[0].target_index == 0 {
+            reached_waypoint = true
+            break
+        }
+    }
+
+    testing.expect(t, reached_waypoint)
+}

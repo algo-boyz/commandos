@@ -170,7 +170,7 @@ main :: proc() {
     player := player_init({mission.player_spawn.x, 1, mission.player_spawn.y})
 
     guards := guards_init(&mission)
-    defer delete(guards)
+    defer guards_destroy(guards)
 
     camera := iso.camera_init(player.position, 65)
     camera.follow_enabled = true

@@ -6,7 +6,6 @@ Guard :: struct {
     id: string,
     position: Mission_Point,
     facing: Mission_Point,
-    patrol: []Mission_Point,
     awareness: Guard_Awareness,
     target_index: int,
     speed: f32,
@@ -22,6 +21,12 @@ Guard :: struct {
     search_direction: f32,
     search_sweeps_completed: int,
     search_complete: bool,
+    patrol: []Mission_Point,
+    patrol_path: []Mission_Point,
+    patrol_path_index: int,
+    patrol_path_target_index: int,
+    patrol_path_ready: bool,
+    patrol_path_found: bool,
 }
 
 GUARD_DEFAULT_SPEED :: 3.5
@@ -32,6 +37,116 @@ GUARD_SEARCH_PAUSE :: 0.75
 GUARD_SEARCH_HALF_ANGLE :: 1.2217305
 GUARD_SEARCH_ANGULAR_SPEED :: 1.5707963
 GUARD_SEARCH_SWEEPS :: 2
+
+guard_patrol_path_clear :: proc(guard: ^Guard) {
+    delete(guard.patrol_path)
+    guard.patrol_path = nil
+    guard.patrol_path_index = 0
+    guard.patrol_path_ready = false
+    guard.patrol_path_found = false
+}
+
+guard_patrol_path_prepare :: proc(
+    guard: ^Guard,
+    mission: ^Mission,
+) {
+    if guard.patrol_path_ready &&
+       guard.patrol_path_target_index == guard.target_index {
+        return
+    }
+
+    guard_patrol_path_clear(guard)
+
+    if guard.target_index < 0 ||
+       guard.target_index >= len(guard.patrol) {
+        return
+    }
+
+    path := nav_find_path(
+        mission,
+        guard.position,
+        guard.patrol[guard.target_index],
+        guard.radius,
+    )
+
+    guard.patrol_path = path.points
+    guard.patrol_path_index = 0
+    guard.patrol_path_target_index = guard.target_index
+    guard.patrol_path_ready = true
+    guard.patrol_path_found = path.found
+}
+
+guard_patrol_update :: proc(
+    guard: ^Guard,
+    mission: ^Mission,
+    dt: f32,
+) {
+    if dt <= 0 || guard.speed <= 0 {
+        return
+    }
+
+    remaining_time := dt
+
+    for remaining_time > 0 {
+        if guard.pause_remaining > 0 {
+            consumed := min(remaining_time, guard.pause_remaining)
+            guard.pause_remaining -= consumed
+            remaining_time -= consumed
+
+            if remaining_time <= 0 {
+                break
+            }
+        }
+
+        guard_patrol_path_prepare(guard, mission)
+
+        if !guard.patrol_path_found {
+            return
+        }
+
+        if guard.patrol_path_index >= len(guard.patrol_path) {
+            guard_arrive(guard)
+            continue
+        }
+
+        target := guard.patrol_path[guard.patrol_path_index]
+
+        dx := target.x - guard.position.x
+        dy := target.y - guard.position.y
+        distance := math.sqrt(dx*dx + dy*dy)
+
+        if distance <= 0.0001 {
+            guard.patrol_path_index += 1
+            continue
+        }
+
+        step := min(guard.speed * remaining_time, distance)
+        direction := Mission_Point{
+            x = dx / distance,
+            y = dy / distance,
+        }
+
+        candidate := Mission_Point{
+            x = guard.position.x + direction.x * step,
+            y = guard.position.y + direction.y * step,
+        }
+
+        // Keep collision detection as a final safety check.
+        if mission_point_collides(mission, candidate, guard.radius) {
+            guard_patrol_path_clear(guard)
+            return
+        }
+
+        guard.position = candidate
+        guard.facing = direction
+
+        remaining_time -= step / guard.speed
+
+        if step >= distance {
+            guard.patrol_path_index += 1
+        }
+    }
+}
 
 guard_search_begin :: proc(guard: ^Guard) {
     guard.searching = true
@@ -151,11 +266,12 @@ guard_arrive :: proc(guard: ^Guard) {
     if len(guard.patrol) == 0 {
         return
     }
-    guard.position = guard.patrol[guard.target_index]
+
+    guard_patrol_path_clear(guard)
+
     guard.target_index = (guard.target_index + 1) % len(guard.patrol)
     guard.pause_remaining = guard.pause_duration
 }
-
 
 guard_investigate_update :: proc(
     guard: ^Guard,
@@ -343,7 +459,9 @@ guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
         if len(guard.patrol) < 2 || guard.speed <= 0 {
             continue
         }
+        guard_patrol_update(guard, mission, dt)
         remaining_time := dt
+
         // Consume the full frame time, including waypoint and pause boundaries.
         for remaining_time > 0 {
             if guard.pause_remaining > 0 {
@@ -384,4 +502,12 @@ guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
             }
         }
     }
+}
+
+guards_destroy :: proc(guards: []Guard) {
+    for guard in guards {
+        delete(guard.patrol_path)
+    }
+
+    delete(guards)
 }
