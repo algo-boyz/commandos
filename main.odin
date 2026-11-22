@@ -26,7 +26,7 @@ player_init :: proc(position: rl.Vector3) -> Player {
     }
 }
 
-player_update :: proc(p: ^Player, dt: f32) {
+player_update :: proc(p: ^Player, mission: ^Mission, dt: f32) {
     input := rl.Vector3{}
 
     if rl.IsKeyDown(rl.KeyboardKey.W) do input.z -= 1
@@ -74,7 +74,7 @@ player_update :: proc(p: ^Player, dt: f32) {
     next := p.position
     next.x += p.velocity.x * dt
 
-    if !player_collides(next, p.radius) {
+    if !mission_collides(mission, next, p.radius) {
         p.position.x = next.x
     } else {
         p.velocity.x = 0
@@ -83,7 +83,7 @@ player_update :: proc(p: ^Player, dt: f32) {
     next = p.position
     next.z += p.velocity.z * dt
 
-    if !player_collides(next, p.radius) {
+    if !mission_collides(mission, next, p.radius) {
         p.position.z = next.z
     } else {
         p.velocity.z = 0
@@ -94,41 +94,18 @@ player_update :: proc(p: ^Player, dt: f32) {
     p.position.z = math.clamp(p.position.z, p.radius, 100 - p.radius)
 }
 
-circle_hits_box :: proc(
-    pos: rl.Vector3,
-    radius: f32,
-    min_x, min_z, max_x, max_z: f32,
-) -> bool {
-    closest_x := math.clamp(pos.x, min_x, max_x)
-    closest_z := math.clamp(pos.z, min_z, max_z)
-
-    dx := pos.x - closest_x
-    dz := pos.z - closest_z
-
-    return dx * dx + dz * dz < radius * radius
-}
-
-player_collides :: proc(pos: rl.Vector3, radius: f32) -> bool {
-    // Barracks: x=37..65, z=12..31.
-    if circle_hits_box(pos, radius, 37, 12, 65, 31) {
-        return true
-    }
-
-    // Watchtower: x=78..86, z=25..33.
-    if circle_hits_box(pos, radius, 78, 25, 86, 33) {
-        return true
-    }
-
-    return false
-}
-
 main :: proc() {
     rl.InitWindow(1280, 720, "Operation Eagle Nest - Greybox")
     defer rl.CloseWindow()
 
     rl.SetTargetFPS(60)
 
-    player := player_init({12, 1, 82})
+    mission, mission_ok := mission_load("mission.json")
+    if !mission_ok {
+        return
+    }
+
+    player := player_init({mission.player_spawn.x, 1, mission.player_spawn.y})
 
     camera := iso.camera_init(player.position, 65)
     camera.follow_enabled = true
@@ -141,7 +118,7 @@ main :: proc() {
             camera.follow_enabled = !camera.follow_enabled
         }
 
-        player_update(&player, dt)
+        player_update(&player, &mission, dt)
 
         iso.camera_update(&camera, dt)
         iso.camera_follow(&camera, player.position, dt)
@@ -158,29 +135,7 @@ main :: proc() {
         )
         rl.DrawGrid(100, 5)
 
-        // Barracks.
-        rl.DrawCube(
-            {51, 2, 21.5},
-            28, 4, 19,
-            rl.BROWN,
-        )
-        rl.DrawCubeWires(
-            {51, 2, 21.5},
-            28, 4, 19,
-            rl.DARKGRAY,
-        )
-
-        // Watchtower.
-        rl.DrawCube(
-            {82, 5, 29},
-            8, 10, 8,
-            rl.GRAY,
-        )
-        rl.DrawCubeWires(
-            {82, 5, 29},
-            8, 10, 8,
-            rl.DARKGRAY,
-        )
+        mission_draw(&mission)
 
         // Player and facing indicator.
         rl.DrawSphere(
@@ -197,8 +152,8 @@ main :: proc() {
 
         // Extraction.
         rl.DrawCylinder(
-            {84, 0.5, 88},
-            3, 3, 1,
+            {mission.extraction.x, 0.5, mission.extraction.y},
+            mission.extraction.radius, mission.extraction.radius, 1,
             16,
             rl.GREEN,
         )
