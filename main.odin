@@ -5,9 +5,21 @@ import "core:math"
 import rl "vendor:raylib"
 import iso "isometric"
 
-PLAYER_FOOTSTEP_INTERVAL :: 0.45
-PLAYER_FOOTSTEP_NOISE_RADIUS :: 18.0
-PLAYER_FOOTSTEP_NOISE_INTENSITY :: 1.0
+PLAYER_WALK_SPEED :: 12.0
+PLAYER_SNEAK_SPEED :: 4.5
+PLAYER_RUN_SPEED :: 18.0
+
+PLAYER_WALK_INTERVAL :: 0.45
+PLAYER_SNEAK_INTERVAL :: 0.70
+PLAYER_RUN_INTERVAL :: 0.30
+
+PLAYER_WALK_NOISE_RADIUS :: 18.0
+PLAYER_SNEAK_NOISE_RADIUS :: 6.0
+PLAYER_RUN_NOISE_RADIUS :: 30.0
+
+PLAYER_WALK_NOISE_INTENSITY :: 1.0
+PLAYER_SNEAK_NOISE_INTENSITY :: 0.35
+PLAYER_RUN_NOISE_INTENSITY :: 1.5
 
 Player :: struct {
     position: rl.Vector3,
@@ -18,6 +30,8 @@ Player :: struct {
     acceleration: f32,
     deceleration: f32,
     footstep_timer: f32,
+    footstep_noise_radius: f32,
+    footstep_noise_intensity: f32,
 }
 
 player_init :: proc(position: rl.Vector3) -> Player {
@@ -29,6 +43,8 @@ player_init :: proc(position: rl.Vector3) -> Player {
         acceleration = 36.0,
         deceleration = 48.0,
         footstep_timer = 0,
+        footstep_noise_radius = PLAYER_WALK_NOISE_RADIUS,
+        footstep_noise_intensity = PLAYER_WALK_NOISE_INTENSITY,
     }
 }
 
