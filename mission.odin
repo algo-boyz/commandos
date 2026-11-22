@@ -43,6 +43,13 @@ Mission_Cover :: struct {
     r: f32,
 }
 
+Mission_Guard :: struct {
+    id: string,
+    patrol: []Mission_Point,
+    speed: f32,
+    pause_duration: f32 `json:"pauseDuration"`,
+}
+
 Mission_Extraction :: struct {
     x: f32,
     y: f32,
@@ -55,6 +62,7 @@ Mission :: struct {
     buildings: []Mission_Rect,
     walls: []Mission_Wall,
     cover: []Mission_Cover,
+    guards: []Mission_Guard,
 }
 
 mission_load :: proc(path: string) -> (Mission, bool) {

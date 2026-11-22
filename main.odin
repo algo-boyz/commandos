@@ -107,6 +107,9 @@ main :: proc() {
 
     player := player_init({mission.player_spawn.x, 1, mission.player_spawn.y})
 
+    guards := guards_init(&mission)
+    defer delete(guards)
+
     camera := iso.camera_init(player.position, 65)
     camera.follow_enabled = true
 
@@ -119,7 +122,8 @@ main :: proc() {
         }
 
         player_update(&player, &mission, dt)
-
+        guard_update(guards, dt)
+        
         iso.camera_update(&camera, dt)
         iso.camera_follow(&camera, player.position, dt)
 
@@ -158,10 +162,26 @@ main :: proc() {
             rl.GREEN,
         )
 
-        // Guard placeholders.
-        rl.DrawSphere({30, 1, 35}, 1.2, rl.RED)
-        rl.DrawSphere({55, 1, 48}, 1.2, rl.RED)
-        rl.DrawSphere({76, 1, 35}, 1.2, rl.RED)
+        // Guards
+        for guard in guards {
+            guard_position := rl.Vector3{
+                guard.position.x,
+                1,
+                guard.position.y,
+            }
+
+            rl.DrawSphere(guard_position, guard.radius, rl.RED)
+
+            rl.DrawLine3D(
+                guard_position,
+                guard_position + rl.Vector3{
+                    guard.facing.x,
+                    0,
+                    guard.facing.y,
+                } * 1.8,
+                rl.MAROON,
+            )
+        }
 
         rl.EndMode3D()
 
