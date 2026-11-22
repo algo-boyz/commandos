@@ -1,0 +1,223 @@
+
+package main
+
+import "core:math"
+
+Vision_Config :: struct {
+    range: f32,
+    // Cosine of the half-angle of the field of view.
+    // 90-degree FOV = cos(45 degrees) = 0.70710678.
+    fov_cos: f32,
+}
+
+VISION_DEFAULT :: Vision_Config{
+    range = 24.0,
+    fov_cos = 0.70710678,
+}
+
+PERCEPTION_EPSILON :: 0.00001
+
+// Tests whether a 2D segment intersects a rectangle.
+// Coordinates use the mission's top-down coordinate space.
+segment_intersects_rect :: proc(
+    start, finish: Mission_Point,
+    rect: Mission_Rect,
+) -> bool {
+    dx := finish.x - start.x
+    dy := finish.y - start.y
+
+    t_min: f32 = 0
+    t_max: f32 = 1
+
+    // Clip against the X interval.
+    if dx > -PERCEPTION_EPSILON && dx < PERCEPTION_EPSILON {
+        if start.x < rect.x || start.x > rect.x + rect.w {
+            return false
+        }
+    } else {
+        tx1 := (rect.x - start.x) / dx
+        tx2 := (rect.x + rect.w - start.x) / dx
+
+        t1 := min(tx1, tx2)
+        t2 := max(tx1, tx2)
+
+        t_min = max(t_min, t1)
+        t_max = min(t_max, t2)
+
+        if t_min > t_max {
+            return false
+        }
+    }
+
+    // Clip against the Y interval.
+    if dy > -PERCEPTION_EPSILON && dy < PERCEPTION_EPSILON {
+        if start.y < rect.y || start.y > rect.y + rect.h {
+            return false
+        }
+    } else {
+        ty1 := (rect.y - start.y) / dy
+        ty2 := (rect.y + rect.h - start.y) / dy
+
+        t1 := min(ty1, ty2)
+        t2 := max(ty1, ty2)
+
+        t_min = max(t_min, t1)
+        t_max = min(t_max, t2)
+
+        if t_min > t_max {
+            return false
+        }
+    }
+
+    return t_max >= 0 && t_min <= 1
+}
+
+segment_blocked_by_wall :: proc(
+    start, finish: Mission_Point,
+    wall: Mission_Wall,
+) -> bool {
+    // Walls without openings are a single solid rectangle.
+    if len(wall.openings) == 0 {
+        rect := Mission_Rect{
+            x = wall.x,
+            y = wall.y,
+            w = wall.w,
+            h = wall.h,
+        }
+        return segment_intersects_rect(start, finish, rect)
+    }
+
+    // Openings are currently supported along vertical wall segments,
+    // matching the mission collision and rendering implementation.
+    if wall.h < wall.w {
+        rect := Mission_Rect{
+            x = wall.x,
+            y = wall.y,
+            w = wall.w,
+            h = wall.h,
+        }
+        return segment_intersects_rect(start, finish, rect)
+    }
+
+    cursor := wall.y
+    wall_end := wall.y + wall.h
+
+    for opening in wall.openings {
+        opening_start := math.clamp(opening.y, wall.y, wall_end)
+        opening_end := math.clamp(opening.y + opening.h, wall.y, wall_end)
+
+        if opening_start > cursor {
+            rect := Mission_Rect{
+                x = wall.x,
+                y = cursor,
+                w = wall.w,
+                h = opening_start - cursor,
+            }
+
+            if segment_intersects_rect(start, finish, rect) {
+                return true
+            }
+        }
+
+        cursor = max(cursor, opening_end)
+    }
+
+    if cursor < wall_end {
+        rect := Mission_Rect{
+            x = wall.x,
+            y = cursor,
+            w = wall.w,
+            h = wall_end - cursor,
+        }
+
+        if segment_intersects_rect(start, finish, rect) {
+            return true
+        }
+    }
+
+    return false
+}
+
+// Returns true if mission geometry obstructs the line between two points.
+mission_line_blocked :: proc(
+    mission: ^Mission,
+    start, finish: Mission_Point,
+) -> bool {
+    for building in mission.buildings {
+        if segment_intersects_rect(start, finish, building) {
+            return true
+        }
+    }
+
+    for wall in mission.walls {
+        if segment_blocked_by_wall(start, finish, wall) {
+            return true
+        }
+    }
+
+    // Crates are solid cover. Barrels and trees are not hard
+    // line-of-sight blockers in this first iteration.
+    for item in mission.cover {
+        if item.kind == "crate" {
+            rect := Mission_Rect{
+                x = item.x,
+                y = item.y,
+                w = item.w,
+                h = item.h,
+            }
+
+            if segment_intersects_rect(start, finish, rect) {
+                return true
+            }
+        }
+    }
+
+    return false
+}
+
+// Pure visibility query. Does not change guard or mission state.
+//
+// facing and positions use the mission's 2D coordinate space.
+// fov_cos is the cosine of the half-angle of the vision cone.
+guard_can_see :: proc(
+    observer: Mission_Point,
+    facing: Mission_Point,
+    target: Mission_Point,
+    mission: ^Mission,
+    vision: Vision_Config,
+) -> bool {
+    dx := target.x - observer.x
+    dy := target.y - observer.y
+
+    distance_sq := dx*dx + dy*dy
+
+    if distance_sq <= PERCEPTION_EPSILON {
+        return true
+    }
+
+    if distance_sq > vision.range * vision.range {
+        return false
+    }
+
+    facing_length_sq := facing.x*facing.x + facing.y*facing.y
+    if facing_length_sq <= PERCEPTION_EPSILON {
+        return false
+    }
+
+    distance := math.sqrt(distance_sq)
+    facing_length := math.sqrt(facing_length_sq)
+
+    direction_x := dx / distance
+    direction_y := dy / distance
+
+    facing_x := facing.x / facing_length
+    facing_y := facing.y / facing_length
+
+    dot := facing_x*direction_x + facing_y*direction_y
+
+    if dot < vision.fov_cos {
+        return false
+    }
+
+    return !mission_line_blocked(mission, observer, target)
+}

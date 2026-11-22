@@ -162,8 +162,22 @@ main :: proc() {
             rl.GREEN,
         )
 
+        vision := VISION_DEFAULT
+
         // Guards
         for guard in guards {
+            sees_player := guard_can_see(
+                guard.position,
+                guard.facing,
+                Mission_Point{player.position.x, player.position.z},
+                &mission,
+                vision,
+            )
+
+            if sees_player {
+                // Awareness logic comes in the next phase.
+            }
+
             guard_position := rl.Vector3{
                 guard.position.x,
                 1,
