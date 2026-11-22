@@ -41,6 +41,5 @@ Test tactical readability and player choice before art production. The compound 
 
 No Gaussian rendering, character animation, weapons, inventory, or mission editor in this milestone.
 
-
 ## Coordinate convention
 Mission layout uses normalized top-down coordinates in a 100 × 100 square. `mission.json` is authoritative for greybox placement; the SVG is a quick visual reference.
