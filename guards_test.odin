@@ -436,24 +436,6 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
         }
     }
 
-    fmt.println("Guard patrol diagnostic:")
-    fmt.printfln("  position: %.2f, %.2f",
-        guards[0].position.x,
-        guards[0].position.y,
-    )
-    fmt.printfln("  target_index: %d", guards[0].target_index)
-    fmt.printfln("  path_found: %v", guards[0].patrol_path_found)
-    fmt.printfln("  path_ready: %v", guards[0].patrol_path_ready)
-    fmt.printfln("  path_index: %d / %d",
-        guards[0].patrol_path_index,
-        len(guards[0].patrol_path),
-    )
-        fmt.printfln("  path_ready: %v", guards[0].patrol_path_ready)
-    fmt.printfln("  path_index: %d / %d",
-        guards[0].patrol_path_index,
-        len(guards[0].patrol_path),
-    )
-
     if guards[0].patrol_path_index < len(guards[0].patrol_path) {
         next := guards[0].patrol_path[guards[0].patrol_path_index]
         fmt.printfln("  next node: %.2f, %.2f", next.x, next.y)
@@ -726,12 +708,23 @@ test_guard_visible_pursuit_uses_direct_steering :: proc(t: ^testing.T) {
 test_guard_visible_pursuit_does_not_jitter_when_target_moves :: proc(
     t: ^testing.T,
 ) {
+    mission := Mission{
+        buildings = {
+            Mission_Rect{
+                x = 2,
+                y = -1,
+                w = 1,
+                h = 2,
+            },
+        },
+    }
+
     guard := Guard{
-        position = {0.2, 0.2},
+        position = {0, 0},
         facing = {1, 0},
         awareness = Guard_Awareness{
             state = .ALERTED,
-            last_known_position = {5.8, 0.2},
+            last_known_position = {5, 0},
             last_known_source = .SIGHT,
         },
         speed = 2,
@@ -743,27 +736,56 @@ test_guard_visible_pursuit_does_not_jitter_when_target_moves :: proc(
     defer delete(guards[0].investigation_path)
     defer delete(guards[0].patrol_path)
 
-    mission := Mission{}
+    previous_position := guards[0].position
+    direction_changes := 0
+    previous_direction := 0
 
-    previous_x := guards[0].position.x
-
-    for i in 0..<30 {
-        // Simulate a player continuously moving to the right.
-        guards[0].awareness.last_known_position = {
-            5.8 + f32(i) * 0.1,
-            0.2,
+    for i in 0..<400 {
+        // Move the visible target periodically while the guard pursues.
+        if i == 100 {
+            guards[0].awareness.last_known_position = {5, 2}
+        } else if i == 200 {
+            guards[0].awareness.last_known_position = {5, -2}
+        } else if i == 300 {
+            guards[0].awareness.last_known_position = {7, 0}
         }
 
         guard_update(guards, &mission, 0.05)
 
-        testing.expect(t, guards[0].position.x >= previous_x)
-        testing.expect(t, guards[0].facing.x > 0)
+        current := guards[0].position
 
-        previous_x = guards[0].position.x
+        testing.expect(
+            t,
+            !mission_point_collides(
+                &mission,
+                current,
+                guards[0].radius,
+            ),
+        )
+
+        dx := current.x - previous_position.x
+        dy := current.y - previous_position.y
+
+        if dx*dx + dy*dy > 0.000001 {
+            direction := 0
+            if abs(dx) > abs(dy) {
+                direction = 1 if dx > 0 else -1
+            } else {
+                direction = 2 if dy > 0 else -2
+            }
+
+            if previous_direction != 0 &&
+               direction != previous_direction {
+                direction_changes += 1
+            }
+
+            previous_direction = direction
+        }
+
+        previous_position = current
     }
 
-    testing.expect(t, guards[0].position.x > 2)
-    testing.expect(t, !guards[0].investigation_path_ready)
+    testing.expect(t, direction_changes < 80)
 }
 
 @(test)

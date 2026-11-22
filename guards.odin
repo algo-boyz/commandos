@@ -65,6 +65,11 @@ guard_investigation_path_prepare :: proc(
     mission: ^Mission,
     target: Mission_Point,
 ) {
+    // During visible pursuit, finish the current route before
+    // considering a new target position.
+    if guard.player_visible && guard.investigation_path_ready {
+        return
+    }
     goal_x := int(target.x)
     goal_y := int(target.y)
 
@@ -333,7 +338,7 @@ guard_investigate_update :: proc(
 
     target := guard.awareness.last_known_position
 
-    if guard.player_visible {
+    if guard.player_visible && !guard.investigation_path_ready {
         guard.searching = false
         guard.search_complete = false
         guard.search_pause_remaining = 0
@@ -400,6 +405,7 @@ guard_investigate_update :: proc(
         if guard.investigation_path_index >=
            len(guard.investigation_path) {
             if guard.player_visible {
+                guard_investigation_path_clear(guard)
                 return
             }
 
