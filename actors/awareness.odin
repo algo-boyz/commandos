@@ -1,7 +1,6 @@
 
 package actors
 
-import "../mission"
 import "../geom"
 
 Guard_Awareness_State :: enum u8 {

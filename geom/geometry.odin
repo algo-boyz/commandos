@@ -5,11 +5,8 @@ import "core:math"
 // Single simulation coordinate type. The whole gameplay layer works in this
 // 2D top-down space. Mapping to 3D (x, height, y) happens only in the renderer.
 Point :: struct {
-    id: string,
     x: f32,
     y: f32,
-    r: f32,
-    h: f32,
 }
 
 // Authoring bounds of the mission plane. Loaded from coordinateSpace in JSON;
@@ -25,7 +22,15 @@ Wall :: struct {
     y: f32,
     w: f32,
     h: f32,
-    openings: []Point,
+    openings: []Opening,
+}
+
+// A gap in a wall, measured along the wall's long axis: it starts at y and
+// spans h. (The names are historical; they apply to horizontal walls too.)
+Opening :: struct {
+    id: string,
+    y: f32,
+    h: f32,
 }
 
 Cover :: struct {
@@ -59,13 +64,23 @@ Rect :: struct {
     h: f32,
 }
 
+// A baked, collidable rectangle. Unlike Rect it carries no authoring id, but
+// remembers what it was authored as.
+Solid :: struct {
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    kind: Kind,
+}
+
 Circle :: struct {
     x, y, r: f32,
     kind: Kind,
 }
 
 Geometry :: struct {
-    solids:  []Rect,   // buildings, wall segments, crates
+    solids:  []Solid,  // buildings, wall segments, crates
     circles: []Circle, // barrels, trees (collision only)
     baked:   bool,
 }
@@ -91,19 +106,19 @@ circle_hits_circle :: proc(
     return dx*dx + dz*dz < combined*combined
 }
 
+// Collision query against already-baked geometry. mission.point_collides is
+// the Mission-level wrapper that makes sure the geometry is baked first.
 point_collides :: proc(
-    lvl: ^Mission,
-    point: geom.Point,
+    geo: ^Geometry,
+    point: Point,
     radius: f32,
 ) -> bool {
-    mission_ensure_baked(lvl)
-
-    for s in lvl.geometry.solids {
+    for s in geo.solids {
         if circle_hits_box(point.x, point.y, radius, s.x, s.y, s.x + s.w, s.y + s.h) {
             return true
         }
     }
-    for c in lvl.geometry.circles {
+    for c in geo.circles {
         if circle_hits_circle(point.x, point.y, radius, c.x, c.y, c.r) {
             return true
         }

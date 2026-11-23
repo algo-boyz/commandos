@@ -83,7 +83,7 @@ mission_line_blocked :: proc(
     mission.mission_ensure_baked(level)
 
     for s in level.geometry.solids {
-        rect := mission.Rect{x = s.x, y = s.y, w = s.w, h = s.h}
+        rect := geom.Rect{x = s.x, y = s.y, w = s.w, h = s.h}
         if segment_intersects_rect(start, finish, rect) {
             return true
         }

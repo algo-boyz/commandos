@@ -27,15 +27,33 @@ Objective :: struct {
     building: string,
 }
 
+// Where the player extracts. The zone is a circle of the given radius; a zero
+// radius means the mission has no usable extraction.
+Extraction :: struct {
+    x: f32,
+    y: f32,
+    radius: f32,
+}
+
+// Authored guard data. The actors package turns each definition into a live
+// Guard (see actors.guards_init); it lives here so mission never has to
+// import actors.
+Guard_Def :: struct {
+    id: string,
+    speed: f32,
+    pause_duration: f32 `json:"pauseDuration"`,
+    patrol: []geom.Point,
+}
+
 Mission :: struct {
     bounds:       geom.Bounds `json:"coordinateSpace"`,
     player_spawn: geom.Point `json:"playerSpawn"`,
-    extraction: geom.Point,
+    extraction: Extraction,
     objective: Objective,
     buildings: []geom.Rect,
     walls: []geom.Wall,
     cover: []geom.Cover,
-    guards: []actors.Guard,
+    guards: []Guard_Def,
     // Filled by mission_bake / mission_ensure_baked. Not present in JSON.
     geometry: geom.Geometry,
 }
@@ -75,18 +93,18 @@ load :: proc(path: string) -> (Mission, bool) {
 // The opening coordinate (Point.y / .h) is treated as an interval
 // along the wall's long axis.
 mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> geom.Geometry {
-    solids:  [dynamic]geom.Rect
+    solids:  [dynamic]geom.Solid
     circles: [dynamic]geom.Circle
     solids.allocator  = allocator
     circles.allocator = allocator
 
     for b in lvl.buildings {
-        append(&solids, geom.Rect{x = b.x, y = b.y, w = b.w, h = b.h, kind = .BUILDING})
+        append(&solids, geom.Solid{x = b.x, y = b.y, w = b.w, h = b.h, kind = .BUILDING})
     }
 
     for wall in lvl.walls {
         if len(wall.openings) == 0 {
-            append(&solids, geom.Rect{x = wall.x, y = wall.y, w = wall.w, h = wall.h, kind = .WALL})
+            append(&solids, geom.Solid{x = wall.x, y = wall.y, w = wall.w, h = wall.h, kind = .WALL})
             continue
         }
 
@@ -98,12 +116,12 @@ mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> geom.Geom
                 start := math.clamp(op.y, wall.y, end)
                 stop  := math.clamp(op.y + op.h, wall.y, end)
                 if start > cursor {
-                    append(&solids, Solid_Rect{x = wall.x, y = cursor, w = wall.w, h = start - cursor, kind = .WALL})
+                    append(&solids, geom.Solid{x = wall.x, y = cursor, w = wall.w, h = start - cursor, kind = .WALL})
                 }
                 cursor = max(cursor, stop)
             }
             if cursor < end {
-                append(&solids, Solid_Rect{x = wall.x, y = cursor, w = wall.w, h = end - cursor, kind = .WALL})
+                append(&solids, geom.Solid{x = wall.x, y = cursor, w = wall.w, h = end - cursor, kind = .WALL})
             }
         } else {
             // Horizontal wall: openings measured along x.
@@ -113,12 +131,12 @@ mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> geom.Geom
                 start := math.clamp(op.y, wall.x, end)
                 stop  := math.clamp(op.y + op.h, wall.x, end)
                 if start > cursor {
-                    append(&solids, geom.Rect{x = cursor, y = wall.y, w = start - cursor, h = wall.h, kind = .WALL})
+                    append(&solids, geom.Solid{x = cursor, y = wall.y, w = start - cursor, h = wall.h, kind = .WALL})
                 }
                 cursor = max(cursor, stop)
             }
             if cursor < end {
-                append(&solids, geom.Rect{x = cursor, y = wall.y, w = end - cursor, h = wall.h, kind = .WALL})
+                append(&solids, geom.Solid{x = cursor, y = wall.y, w = end - cursor, h = wall.h, kind = .WALL})
             }
         }
     }
@@ -126,7 +144,7 @@ mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> geom.Geom
     for item in lvl.cover {
         switch item.kind {
         case "crate":
-            append(&solids, geom.Rect{x = item.x, y = item.y, w = item.w, h = item.h, kind = .CRATE})
+            append(&solids, geom.Solid{x = item.x, y = item.y, w = item.w, h = item.h, kind = .CRATE})
         case "barrel":
             append(&circles, geom.Circle{x = item.x, y = item.y, r = item.r, kind = .BARREL})
         case "tree":
@@ -148,4 +166,15 @@ mission_ensure_baked :: proc(lvl: ^Mission) {
         return
     }
     lvl.geometry = mission_bake(lvl)
+}
+
+// Collision query against the mission's baked geometry, baking it first if
+// needed. Shared by player movement, guard movement and navigation.
+point_collides :: proc(
+    lvl: ^Mission,
+    point: geom.Point,
+    radius: f32,
+) -> bool {
+    mission_ensure_baked(lvl)
+    return geom.point_collides(&lvl.geometry, point, radius)
 }

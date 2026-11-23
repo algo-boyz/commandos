@@ -124,8 +124,8 @@ find_path :: proc(
         return result
     }
 
-    if geom.point_collides(level, start, radius) ||
-       geom.point_collides(level, goal, radius) {
+    if mission.point_collides(level, start, radius) ||
+       mission.point_collides(level, goal, radius) {
         return result
     }
 
@@ -208,7 +208,7 @@ find_path :: proc(
             if closed[next_idx] do continue
 
             next_point := nav_cell_center(next_x, next_y)
-            if geom.point_collides(level, next_point, radius) {
+            if mission.point_collides(level, next_point, radius) {
                 continue
             }
 
@@ -216,8 +216,8 @@ find_path :: proc(
                 side_x := nav_cell_center(current_x + dx, current_y)
                 side_y := nav_cell_center(current_x, current_y + dy)
 
-                if geom.point_collides(level, side_x, radius) ||
-                   geom.point_collides(level, side_y, radius) {
+                if mission.point_collides(level, side_x, radius) ||
+                   mission.point_collides(level, side_y, radius) {
                     continue
                 }
             }

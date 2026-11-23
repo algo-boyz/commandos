@@ -3,7 +3,7 @@ package main
 
 import rl "vendor:raylib"
 import "game"
-import iso "isometric"
+import iso "camera"
 import "mission"
 import "nav"
 import "render"

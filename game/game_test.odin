@@ -2,7 +2,6 @@
 package game
 
 import "core:testing"
-import "../actors"
 import "../mission"
 import "../geom"
 
@@ -14,11 +13,11 @@ import "../geom"
 test_walking_player_is_heard_by_guard_without_line_of_sight :: proc(t: ^testing.T) {
     // A building blocks sight between the player and the guard, so any
     // reaction must come from the footstep alone.
-    buildings := []mission.Rect{
+    buildings := []geom.Rect{
         {id = "blocker", x = 14, y = 15, w = 2, h = 10},
     }
     patrol := []geom.Point{{20, 20}}
-    guard_defs := []actors.Guard{
+    guard_defs := []mission.Guard_Def{
         {id = "guard", patrol = patrol},
     }
 
@@ -50,11 +49,11 @@ test_walking_player_is_heard_by_guard_without_line_of_sight :: proc(t: ^testing.
 test_sneaking_player_is_not_heard_at_walking_distance :: proc(t: ^testing.T) {
     // Same geometry as the walking test: ~9.6 units is inside the walking
     // noise radius (18) but outside the sneaking radius (6).
-    buildings := []mission.Rect{
+    buildings := []geom.Rect{
         {id = "blocker", x = 14, y = 15, w = 2, h = 10},
     }
     patrol := []geom.Point{{20, 20}}
-    guard_defs := []actors.Guard{
+    guard_defs := []mission.Guard_Def{
         {id = "guard", patrol = patrol},
     }
 
@@ -79,7 +78,7 @@ test_guard_with_clear_view_builds_suspicion_then_alerts :: proc(t: ^testing.T) {
     // Guard faces +x (the default) with an unobstructed view of a
     // stationary player 10 units away.
     patrol := []geom.Point{{20, 20}}
-    guard_defs := []actors.Guard{
+    guard_defs := []mission.Guard_Def{
         {id = "guard", patrol = patrol},
     }
 

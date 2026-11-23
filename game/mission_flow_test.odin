@@ -117,7 +117,7 @@ test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T)
     // Parked well off the player's route along y = 20: more than the
     // footstep noise radius away, and never close enough to touch.
     patrol := []geom.Point{{20, 40}}
-    guard_defs := []actors.Guard{
+    guard_defs := []mission.Guard_Def{
         {id = "guard", patrol = patrol},
     }
 

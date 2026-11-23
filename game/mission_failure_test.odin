@@ -2,7 +2,6 @@
 package game
 
 import "core:testing"
-import "../actors"
 import "../mission"
 import "../geom"
 
@@ -14,7 +13,7 @@ import "../geom"
 test_guard_touching_player_fails_the_mission :: proc(t: ^testing.T) {
     // A stationary, unaware guard 0.5 units from the player is touching.
     patrol := []geom.Point{{10.5, 20}}
-    guard_defs := []actors.Guard{
+    guard_defs := []mission.Guard_Def{
         {id = "guard", patrol = patrol},
     }
 
@@ -37,7 +36,7 @@ test_guard_just_outside_touch_distance_does_not_fail_the_mission :: proc(t: ^tes
     // they do. The guard faces away (default +x), so it neither sees nor
     // hears the stationary player and stays put.
     far_patrol := []geom.Point{{11.7, 20}}
-    far_defs := []actors.Guard{
+    far_defs := []mission.Guard_Def{
         {id = "far", patrol = far_patrol},
     }
     far_world := world_init(mission.Mission{
@@ -52,7 +51,7 @@ test_guard_just_outside_touch_distance_does_not_fail_the_mission :: proc(t: ^tes
     testing.expect(t, far_world.outcome == .PLAYING)
 
     near_patrol := []geom.Point{{11.5, 20}}
-    near_defs := []actors.Guard{
+    near_defs := []mission.Guard_Def{
         {id = "near", patrol = near_patrol},
     }
     near_world := world_init(mission.Mission{
@@ -70,7 +69,7 @@ test_being_caught_at_extraction_is_a_failure_not_a_success :: proc(t: ^testing.T
     // No objective, so extraction is available immediately and the player is
     // standing in the zone. A guard touching them in the same frame wins.
     patrol := []geom.Point{{30.5, 20}}
-    guard_defs := []actors.Guard{
+    guard_defs := []mission.Guard_Def{
         {id = "guard", patrol = patrol},
     }
 
@@ -95,7 +94,7 @@ test_being_caught_at_extraction_is_a_failure_not_a_success :: proc(t: ^testing.T
 @(test)
 test_restart_after_failure_returns_to_clean_initial_state :: proc(t: ^testing.T) {
     patrol := []geom.Point{{10.5, 20}}
-    guard_defs := []actors.Guard{
+    guard_defs := []mission.Guard_Def{
         {id = "guard", patrol = patrol},
     }
 
@@ -126,7 +125,7 @@ test_alerted_guard_chases_stationary_player_until_it_catches_them :: proc(t: ^te
     // Full pipeline: the guard sees the player, builds suspicion, alerts,
     // pursues in a straight line and touches them. The player never moves.
     patrol := []geom.Point{{20, 20}}
-    guard_defs := []actors.Guard{
+    guard_defs := []mission.Guard_Def{
         {id = "guard", patrol = patrol},
     }
 

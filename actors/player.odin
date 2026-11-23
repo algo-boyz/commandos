@@ -120,7 +120,7 @@ player_update :: proc(
     next := p.position
     next.x += p.velocity.x * dt
 
-    if !geom.point_collides(level, next, p.radius) {
+    if !mission.point_collides(level, next, p.radius) {
         p.position.x = next.x
     } else {
         p.velocity.x = 0
@@ -129,7 +129,7 @@ player_update :: proc(
     next = p.position
     next.y += p.velocity.y * dt
 
-    if !geom.point_collides(level, next, p.radius) {
+    if !mission.point_collides(level, next, p.radius) {
         p.position.y = next.y
     } else {
         p.velocity.y = 0

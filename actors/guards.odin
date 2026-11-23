@@ -131,7 +131,7 @@ follow_path :: proc(
 
         // Final collision safety check. If the route is no longer
         // usable, discard it and let the next update replan.
-        if geom.point_collides(lvl, candidate, guard.radius) {
+        if mission.point_collides(lvl, candidate, guard.radius) {
             path_follower_clear(follower)
             return remaining, false
         }
@@ -490,7 +490,7 @@ guard_investigate_update :: proc(
             y = guard.position.y + direction.y * step,
         }
 
-        if !geom.point_collides(lvl, candidate, guard.radius) {
+        if !mission.point_collides(lvl, candidate, guard.radius) {
             guard.position = candidate
             guard.facing = direction
             return

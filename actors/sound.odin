@@ -3,7 +3,6 @@ package actors
 
 import "core:math"
 
-import "../mission"
 import "../geom"
 
 Noise_Event :: struct {

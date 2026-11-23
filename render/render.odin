@@ -53,7 +53,7 @@ render_ground :: proc(lvl: ^mission.Mission) {
 // Draws the baked collision geometry. Because collision, line of sight and
 // rendering all read the same list, a wall opening you can see is an opening
 // the guards and the player can use, for walls of either orientation.
-render_geometry :: proc(geo: mission.Mission_Geometry) {
+render_geometry :: proc(geo: geom.Geometry) {
     for s in geo.solids {
         height: f32
         color: rl.Color

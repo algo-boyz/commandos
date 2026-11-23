@@ -1,10 +1,10 @@
 
-package isometric
+package camera
 
 import "core:math"
 import rl "vendor:raylib"
 
-Iso_Camera :: struct {
+Isometric :: struct {
     camera: rl.Camera3D,
     target: rl.Vector3,
     azimuth: f32,
@@ -26,8 +26,8 @@ DEFAULT_VIEW_HEIGHT :: 32.0
 camera_init :: proc(
     target: rl.Vector3 = {0, 0, 0},
     view_height: f32 = DEFAULT_VIEW_HEIGHT,
-) -> Iso_Camera {
-    c := Iso_Camera{
+) -> Isometric {
+    c := Isometric{
         target = target,
         azimuth = DEFAULT_AZIMUTH,
         elevation = DEFAULT_ELEVATION,
@@ -47,7 +47,7 @@ camera_init :: proc(
     return c
 }
 
-camera_rebuild :: proc(c: ^Iso_Camera) {
+camera_rebuild :: proc(c: ^Isometric) {
     az := c.azimuth * math.PI / 180.0
     el := c.elevation * math.PI / 180.0
 
@@ -66,7 +66,7 @@ camera_rebuild :: proc(c: ^Iso_Camera) {
 }
 
 camera_follow :: proc(
-    c: ^Iso_Camera,
+    c: ^Isometric,
     target: rl.Vector3,
     dt: f32,
 ) {
@@ -81,7 +81,7 @@ camera_follow :: proc(
     camera_rebuild(c)
 }
 
-camera_update :: proc(c: ^Iso_Camera, dt: f32) {
+camera_update :: proc(c: ^Isometric, dt: f32) {
     wheel := rl.GetMouseWheelMove()
 
     if wheel != 0 {

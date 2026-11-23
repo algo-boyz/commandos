@@ -98,7 +98,7 @@ bench_nearest_open_cell :: proc(
         for x in 0..<grid_w {
             candidate := nav_cell_center(x, y)
 
-            if geom.point_collides(level, candidate, radius) {
+            if mission.point_collides(level, candidate, radius) {
                 continue
             }
 
@@ -220,10 +220,10 @@ bench_navigation :: proc(t: ^testing.T) {
     {
         sealed := mission.Mission{
             walls = {
-                mission.Wall{x = 85, y = 85, w = 10, h = 1},
-                mission.Wall{x = 85, y = 94, w = 10, h = 1},
-                mission.Wall{x = 85, y = 85, w = 1, h = 10},
-                mission.Wall{x = 94, y = 85, w = 1, h = 10},
+                geom.Wall{x = 85, y = 85, w = 10, h = 1},
+                geom.Wall{x = 85, y = 94, w = 10, h = 1},
+                geom.Wall{x = 85, y = 85, w = 1, h = 10},
+                geom.Wall{x = 94, y = 85, w = 1, h = 10},
             },
         }
         defer geom.destroy(&sealed.geometry)

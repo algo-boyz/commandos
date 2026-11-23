@@ -3,6 +3,7 @@ package actors
 
 import "core:testing"
 import "../mission"
+import "../geom"
 
 @(test)
 test_guard_vision_range :: proc(t: ^testing.T) {
@@ -65,7 +66,7 @@ test_guard_vision_fov :: proc(t: ^testing.T) {
 test_guard_vision_building_occlusion :: proc(t: ^testing.T) {
     level := mission.Mission{
         buildings = {
-            mission.Rect{
+            geom.Rect{
                 x = 4,
                 y = -2,
                 w = 2,
@@ -89,13 +90,13 @@ test_guard_vision_building_occlusion :: proc(t: ^testing.T) {
 test_guard_vision_wall_opening :: proc(t: ^testing.T) {
     level := mission.Mission{
         walls = {
-            mission.Wall{
+            geom.Wall{
                 x = 10,
                 y = 0,
                 w = 1,
                 h = 20,
                 openings = {
-                    mission.Point{
+                    geom.Opening{
                         y = 8,
                         h = 4,
                     },

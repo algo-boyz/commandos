@@ -84,7 +84,7 @@ test_real_mission_objective_and_extraction_are_reachable_from_spawn :: proc(t: ^
     testing.expect(t, level.extraction.radius > 0)
     testing.expect(
         t,
-        !geom.point_collides(&level, level.player_spawn, player_radius),
+        !mission.point_collides(&level, level.player_spawn, player_radius),
         "player spawn is inside solid geometry",
     )
 
