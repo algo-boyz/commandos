@@ -48,6 +48,7 @@ world_reset :: proc(world: ^World) {
 
 world_destroy :: proc(world: ^World) {
     guards_destroy(world.guards)
+    mission_geometry_destroy(&world.mission.geometry)
     world.guards = nil
 }
 

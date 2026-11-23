@@ -72,106 +72,22 @@ segment_intersects_rect :: proc(
     return t_max >= 0 && t_min <= 1
 }
 
-segment_blocked_by_wall :: proc(
-    start, finish: Mission_Point,
-    wall: Mission_Wall,
-) -> bool {
-    // Walls without openings are a single solid rectangle.
-    if len(wall.openings) == 0 {
-        rect := Mission_Rect{
-            x = wall.x,
-            y = wall.y,
-            w = wall.w,
-            h = wall.h,
-        }
-        return segment_intersects_rect(start, finish, rect)
-    }
-
-    // Openings are currently supported along vertical wall segments,
-    // matching the mission collision and rendering implementation.
-    if wall.h < wall.w {
-        rect := Mission_Rect{
-            x = wall.x,
-            y = wall.y,
-            w = wall.w,
-            h = wall.h,
-        }
-        return segment_intersects_rect(start, finish, rect)
-    }
-
-    cursor := wall.y
-    wall_end := wall.y + wall.h
-
-    for opening in wall.openings {
-        opening_start := math.clamp(opening.y, wall.y, wall_end)
-        opening_end := math.clamp(opening.y + opening.h, wall.y, wall_end)
-
-        if opening_start > cursor {
-            rect := Mission_Rect{
-                x = wall.x,
-                y = cursor,
-                w = wall.w,
-                h = opening_start - cursor,
-            }
-
-            if segment_intersects_rect(start, finish, rect) {
-                return true
-            }
-        }
-
-        cursor = max(cursor, opening_end)
-    }
-
-    if cursor < wall_end {
-        rect := Mission_Rect{
-            x = wall.x,
-            y = cursor,
-            w = wall.w,
-            h = wall_end - cursor,
-        }
-
-        if segment_intersects_rect(start, finish, rect) {
-            return true
-        }
-    }
-
-    return false
-}
-
 // Returns true if mission geometry obstructs the line between two points.
+// Uses the same baked solids list as collision, so openings are consistent.
 mission_line_blocked :: proc(
     mission: ^Mission,
     start, finish: Mission_Point,
 ) -> bool {
-    for building in mission.buildings {
-        if segment_intersects_rect(start, finish, building) {
+    mission_ensure_baked(mission)
+
+    for s in mission.geometry.solids {
+        rect := Mission_Rect{x = s.x, y = s.y, w = s.w, h = s.h}
+        if segment_intersects_rect(start, finish, rect) {
             return true
         }
     }
-
-    for wall in mission.walls {
-        if segment_blocked_by_wall(start, finish, wall) {
-            return true
-        }
-    }
-
-    // Crates are solid cover. Barrels and trees are not hard
-    // line-of-sight blockers in this first iteration.
-    for item in mission.cover {
-        if item.kind == "crate" {
-            rect := Mission_Rect{
-                x = item.x,
-                y = item.y,
-                w = item.w,
-                h = item.h,
-            }
-
-            if segment_intersects_rect(start, finish, rect) {
-                return true
-            }
-        }
-    }
-
+    // Circles (barrels/trees) remain non-blocking for LOS, matching the
+    // previous behaviour.
     return false
 }
 

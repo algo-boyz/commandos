@@ -4,18 +4,48 @@ package main
 import "core:testing"
 import "core:fmt"
 
+// Central test builder for Guard values. Keep all default field values
+// here so future Guard struct changes only need updating in one place.
+test_guard :: proc(
+    position: Mission_Point = {0, 0},
+    facing: Mission_Point = {1, 0},
+    awareness: Guard_Awareness = {},
+    speed: f32 = 2,
+    radius: f32 = GUARD_RADIUS,
+    patrol: []Mission_Point = nil,
+    target_index: int = 0,
+    pause_duration: f32 = GUARD_DEFAULT_PAUSE,
+    hearing_threshold: f32 = GUARD_DEFAULT_HEARING_THRESHOLD,
+    player_visible: bool = false,
+    searching: bool = false,
+    search_pause_remaining: f32 = 0,
+) -> Guard {
+    a := awareness
+    if a == Guard_Awareness{} {
+        a = guard_awareness_init()
+    }
+    return Guard{
+        position = position,
+        facing = facing,
+        awareness = a,
+        speed = speed,
+        radius = radius,
+        patrol = patrol,
+        target_index = target_index,
+        pause_duration = pause_duration,
+        hearing_threshold = hearing_threshold,
+        player_visible = player_visible,
+        searching = searching,
+        search_pause_remaining = search_pause_remaining,
+    }
+}
+
 @(test)
 test_alerted_guard_moves_to_last_known_position :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {10, 0},
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-    }
+        })
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -38,15 +68,10 @@ test_alerted_guard_moves_to_last_known_position :: proc(t: ^testing.T) {
 
 @(test)
 test_alerted_guard_stops_at_last_known_position :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {1, 0},
-        },
-        speed = 3,
-        radius = GUARD_RADIUS,
-    }
+        }, speed = 3)
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -76,15 +101,10 @@ test_alerted_guard_cannot_move_through_building :: proc(t: ^testing.T) {
         },
     }
 
-    guard := Guard{
-        position = {0, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {5, 0},
-        },
-        speed = 1,
-        radius = GUARD_RADIUS,
-    }
+        }, speed = 1)
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -100,16 +120,10 @@ test_alerted_guard_cannot_move_through_building :: proc(t: ^testing.T) {
 
 @(test)
 test_alerted_guard_begins_search_at_last_known_position :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {0, 0},
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-    }
+        })
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -125,16 +139,10 @@ test_alerted_guard_begins_search_at_last_known_position :: proc(t: ^testing.T) {
 
 @(test)
 test_alerted_guard_scans_left_and_right :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {0, 0},
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-    }
+        })
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -151,17 +159,10 @@ test_alerted_guard_scans_left_and_right :: proc(t: ^testing.T) {
 
 @(test)
 test_alerted_guard_enters_recovering_after_search :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {0, 0},
-        },
-        speed = 2,
-        patrol = []Mission_Point{{5, 0}, {10, 0}},
-        radius = GUARD_RADIUS,
-    }
+        }, patrol = []Mission_Point{{5, 0}, {10, 0}})
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -180,18 +181,11 @@ test_alerted_guard_enters_recovering_after_search :: proc(t: ^testing.T) {
 
 @(test)
 test_alerted_guard_returns_to_patrol_after_search :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {0, 0},
             last_known_source = .SIGHT,
-        },
-        speed = 2,
-        patrol = []Mission_Point{{5, 0}, {10, 0}},
-        radius = GUARD_RADIUS,
-    }
+        }, patrol = []Mission_Point{{5, 0}, {10, 0}})
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -226,18 +220,14 @@ test_alerted_guard_returns_to_patrol_after_search :: proc(t: ^testing.T) {
 
 @(test)
 test_alerted_guard_resumes_pursuit_after_reacquisition :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
+    guard := test_guard(
         awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {10, 0},
         },
-        speed = 2,
-        radius = GUARD_RADIUS,
         searching = true,
         search_pause_remaining = 0.5,
-    }
+    )
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -253,17 +243,11 @@ test_alerted_guard_resumes_pursuit_after_reacquisition :: proc(t: ^testing.T) {
 
 @(test)
 test_suspicious_guard_moves_to_heard_noise :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .SUSPICIOUS,
             last_known_position = {10, 0},
             last_known_source = .SOUND,
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-    }
+        })
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -286,17 +270,11 @@ test_suspicious_guard_moves_to_heard_noise :: proc(t: ^testing.T) {
 
 @(test)
 test_suspicious_guard_finishes_noise_search_and_resets :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .SUSPICIOUS,
             last_known_position = {0, 0},
             last_known_source = .SOUND,
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-    }
+        })
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -314,11 +292,7 @@ test_suspicious_guard_finishes_noise_search_and_resets :: proc(t: ^testing.T) {
 
 @(test)
 test_guard_hears_footstep_and_becomes_suspicious :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {2, 0},
-        awareness = guard_awareness_init(),
-        hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
-    }
+    guard := test_guard(position = {2, 0})
     footstep := Noise_Event{
         position = {0, 0},
         radius = 10,
@@ -335,11 +309,7 @@ test_guard_hears_footstep_and_becomes_suspicious :: proc(t: ^testing.T) {
 
 @(test)
 test_guard_does_not_hear_distant_footstep :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {20, 0},
-        awareness = guard_awareness_init(),
-        hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
-    }
+    guard := test_guard(position = {20, 0})
     footstep := Noise_Event{
         position = {0, 0},
         radius = 10,
@@ -354,16 +324,11 @@ test_guard_does_not_hear_distant_footstep :: proc(t: ^testing.T) {
 
 @(test)
 test_guard_does_not_let_noise_override_visual_position :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {2, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(position = {2, 0}, awareness = Guard_Awareness{
             state = .SUSPICIOUS,
             last_known_position = {4, 5},
             last_known_source = .SIGHT,
-        },
-        hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
-    }
+        })
     footstep := Noise_Event{
         position = {0, 0},
         radius = 10,
@@ -400,7 +365,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
         },
     }
 
-    guard := Guard{
+    guard := test_guard(
         position = {25, 48},
         patrol = []Mission_Point{
             {25, 48},
@@ -409,8 +374,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
         target_index = 1,
         speed = 3.2,
         pause_duration = 1.0,
-        radius = GUARD_RADIUS,
-    }
+    )
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -460,7 +424,7 @@ test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
         },
     }
 
-    guard := Guard{
+    guard := test_guard(
         position = {10.5, 12.5},
         awareness = Guard_Awareness{
             state = .RECOVERING,
@@ -474,8 +438,7 @@ test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
         target_index = 1,
         speed = 3.5,
         pause_duration = 1,
-        radius = GUARD_RADIUS,
-    }
+    )
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -522,7 +485,7 @@ test_guard_recovery_does_not_reset_when_path_unreachable :: proc(t: ^testing.T) 
         },
     }
 
-    guard := Guard{
+    guard := test_guard(
         position = {10.5, 10.5},
         awareness = Guard_Awareness{
             state = .RECOVERING,
@@ -536,8 +499,7 @@ test_guard_recovery_does_not_reset_when_path_unreachable :: proc(t: ^testing.T) 
         target_index = 1,
         speed = 3.5,
         pause_duration = 1,
-        radius = GUARD_RADIUS,
-    }
+    )
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -566,15 +528,10 @@ test_alerted_guard_routes_around_building :: proc(t: ^testing.T) {
         },
     }
 
-    guard := Guard{
-        position = {0, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {5, 0},
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-    }
+        })
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -628,15 +585,10 @@ test_alerted_guard_does_not_move_toward_unreachable_target :: proc(
         },
     }
 
-    guard := Guard{
-        position = {10.5, 10.5},
-        awareness = Guard_Awareness{
+    guard := test_guard(position = {10.5, 10.5}, awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {30.5, 10.5},
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-    }
+        })
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -654,12 +606,7 @@ test_alerted_guard_does_not_move_toward_unreachable_target :: proc(
 
 @(test)
 test_guard_turns_toward_heard_noise :: proc(t: ^testing.T) {
-    guard := Guard{
-        position = {2, 2},
-        facing = {1, 0},
-        awareness = guard_awareness_init(),
-        hearing_threshold = GUARD_DEFAULT_HEARING_THRESHOLD,
-    }
+    guard := test_guard(position = {2, 2})
 
     noise := Noise_Event{
         position = {2, 8},
@@ -677,18 +624,15 @@ test_guard_turns_toward_heard_noise :: proc(t: ^testing.T) {
 
 @(test)
 test_guard_visible_pursuit_uses_direct_steering :: proc(t: ^testing.T) {
-    guard := Guard{
+    guard := test_guard(
         position = {0.2, 0.2},
-        facing = {1, 0},
         awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {5.8, 0.2},
             last_known_source = .SIGHT,
         },
-        speed = 2,
-        radius = GUARD_RADIUS,
         player_visible = true,
-    }
+    )
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -719,18 +663,11 @@ test_guard_visible_pursuit_does_not_jitter_when_target_moves :: proc(
         },
     }
 
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {5, 0},
             last_known_source = .SIGHT,
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-        player_visible = true,
-    }
+        }, player_visible = true)
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
@@ -827,18 +764,11 @@ test_guard_visible_pursuit_uses_navigation_around_obstacle :: proc(
         },
     }
 
-    guard := Guard{
-        position = {0, 0},
-        facing = {1, 0},
-        awareness = Guard_Awareness{
+    guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {5, 0},
             last_known_source = .SIGHT,
-        },
-        speed = 2,
-        radius = GUARD_RADIUS,
-        player_visible = true,
-    }
+        }, player_visible = true)
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation_path)
