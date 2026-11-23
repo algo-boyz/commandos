@@ -59,13 +59,13 @@ main :: proc() {
             if len(world.guards) > 0 {
                 guard := &world.guards[0]
 
-                if len(guard.patrol) > 0 &&
-                   guard.target_index >= 0 &&
-                   guard.target_index < len(guard.patrol) {
+                if len(guard.patrol.points) > 0 &&
+                   guard.patrol.target_index >= 0 &&
+                   guard.patrol.target_index < len(guard.patrol.points) {
                     nav_debug_path = nav_find_path(
                         &world.mission,
                         guard.position,
-                        guard.patrol[guard.target_index],
+                        guard.patrol.points[guard.patrol.target_index],
                         guard.radius,
                     )
                 }

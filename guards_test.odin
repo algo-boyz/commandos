@@ -24,19 +24,34 @@ test_guard :: proc(
     if a == {} {
         a = guard_awareness_init()
     }
+    behaviour := Guard_Behaviour.PATROL
+    if a.state == .ALERTED ||
+       (a.state == .SUSPICIOUS && a.last_known_source == .SOUND) {
+        behaviour = .INVESTIGATE
+    } else if a.state == .RECOVERING {
+        behaviour = .RECOVER
+    }
+    if searching {
+        behaviour = .SEARCH
+    }
     return Guard{
         position = position,
         facing = facing,
         awareness = a,
+        behaviour = behaviour,
         speed = speed,
         radius = radius,
-        patrol = patrol,
-        target_index = target_index,
-        pause_duration = pause_duration,
         hearing_threshold = hearing_threshold,
         player_visible = player_visible,
-        searching = searching,
-        search_pause_remaining = search_pause_remaining,
+        patrol = Guard_Patrol{
+            points = patrol,
+            target_index = target_index,
+            pause_duration = pause_duration,
+        },
+        search = Guard_Search{
+            active = searching,
+            pause_remaining = search_pause_remaining,
+        },
     }
 }
 
@@ -48,8 +63,8 @@ test_alerted_guard_moves_to_last_known_position :: proc(t: ^testing.T) {
         })
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     guard_update(guards, &mission, 1.0)
@@ -74,8 +89,8 @@ test_alerted_guard_stops_at_last_known_position :: proc(t: ^testing.T) {
         }, speed = 3)
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     guard_update(guards, &mission, 1.0)
@@ -107,8 +122,8 @@ test_alerted_guard_cannot_move_through_building :: proc(t: ^testing.T) {
         }, speed = 1)
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     for _ in 0..<20 {
         guard_update(guards, &mission, 0.1)
@@ -126,14 +141,14 @@ test_alerted_guard_begins_search_at_last_known_position :: proc(t: ^testing.T) {
         })
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     guard_update(guards, &mission, 0.1)
 
-    testing.expect(t, guards[0].searching)
-    testing.expect(t, guards[0].search_pause_remaining > 0)
+    testing.expect(t, guards[0].search.active)
+    testing.expect(t, guards[0].search.pause_remaining > 0)
     testing.expect(t, guards[0].position.x == 0)
 }
 
@@ -145,15 +160,15 @@ test_alerted_guard_scans_left_and_right :: proc(t: ^testing.T) {
         })
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     guard_update(guards, &mission, 0.1)
     guard_update(guards, &mission, 0.75)
     guard_update(guards, &mission, 0.5)
 
-    testing.expect(t, guards[0].searching)
+    testing.expect(t, guards[0].search.active)
     testing.expect(t, guards[0].facing.y < 0)
 }
 
@@ -165,15 +180,15 @@ test_alerted_guard_enters_recovering_after_search :: proc(t: ^testing.T) {
         }, patrol = []Mission_Point{{5, 0}, {10, 0}})
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     for _ in 0..<70 {
         guard_update(guards, &mission, 0.1)
     }
 
-    testing.expect(t, !guards[0].searching)
+    testing.expect(t, !guards[0].search.active)
     testing.expect(t, guards[0].awareness.state == .RECOVERING)
     testing.expect(t, guards[0].position.x > 0)
     testing.expect(t, guards[0].position.x < 5)
@@ -188,8 +203,8 @@ test_alerted_guard_returns_to_patrol_after_search :: proc(t: ^testing.T) {
         }, patrol = []Mission_Point{{5, 0}, {10, 0}})
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     // Advance until the search transitions into recovery.
@@ -230,14 +245,14 @@ test_alerted_guard_resumes_pursuit_after_reacquisition :: proc(t: ^testing.T) {
     )
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     guards[0].player_visible = true
     guard_update(guards, &mission, 0.5)
 
-    testing.expect(t, !guards[0].searching)
+    testing.expect(t, !guards[0].search.active)
     testing.expect(t, guards[0].position.x > 0)
 }
 
@@ -250,8 +265,8 @@ test_suspicious_guard_moves_to_heard_noise :: proc(t: ^testing.T) {
         })
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     guard_update(guards, &mission, 1.0)
@@ -277,8 +292,8 @@ test_suspicious_guard_finishes_noise_search_and_resets :: proc(t: ^testing.T) {
         })
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
     mission := Mission{}
 
     for _ in 0..<100 {
@@ -287,7 +302,7 @@ test_suspicious_guard_finishes_noise_search_and_resets :: proc(t: ^testing.T) {
 
     testing.expect(t, guards[0].awareness.state == .UNAWARE)
     testing.expect(t, guards[0].awareness.last_known_source == .NONE)
-    testing.expect(t, !guards[0].searching)
+    testing.expect(t, !guards[0].search.active)
 }
 
 @(test)
@@ -377,8 +392,8 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
     )
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     reached_waypoint := false
 
@@ -394,14 +409,14 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
             ),
         )
 
-        if guards[0].target_index == 0 {
+        if guards[0].patrol.target_index == 0 {
             reached_waypoint = true
             break
         }
     }
 
-    if guards[0].patrol_path_index < len(guards[0].patrol_path) {
-        next := guards[0].patrol_path[guards[0].patrol_path_index]
+    if guards[0].patrol.route.index < len(guards[0].patrol.route.path) {
+        next := guards[0].patrol.route.path[guards[0].patrol.route.index]
         fmt.printfln("  next node: %.2f, %.2f", next.x, next.y)
         fmt.printfln("  next node blocked: %v",
             mission_point_collides(&mission, next, guards[0].radius),
@@ -441,8 +456,8 @@ test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
     )
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     reached_waypoint := false
 
@@ -502,8 +517,8 @@ test_guard_recovery_does_not_reset_when_path_unreachable :: proc(t: ^testing.T) 
     )
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     for _ in 0..<100 {
         guard_update(guards, &mission, 0.1)
@@ -534,8 +549,8 @@ test_alerted_guard_routes_around_building :: proc(t: ^testing.T) {
         })
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     routed_around := false
     reached_destination_cell := false
@@ -591,8 +606,8 @@ test_alerted_guard_does_not_move_toward_unreachable_target :: proc(
         })
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     for _ in 0..<10 {
         guard_update(guards, &mission, 0.1)
@@ -601,7 +616,7 @@ test_alerted_guard_does_not_move_toward_unreachable_target :: proc(
     testing.expect(t, guards[0].position.x == 10.5)
     testing.expect(t, guards[0].position.y == 10.5)
     testing.expect(t, guards[0].awareness.state == .ALERTED)
-    testing.expect(t, !guards[0].searching)
+    testing.expect(t, !guards[0].search.active)
 }
 
 @(test)
@@ -635,8 +650,8 @@ test_guard_visible_pursuit_uses_direct_steering :: proc(t: ^testing.T) {
     )
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     mission := Mission{}
 
@@ -645,7 +660,7 @@ test_guard_visible_pursuit_uses_direct_steering :: proc(t: ^testing.T) {
     testing.expect(t, guards[0].position.x > 0.2)
     testing.expect(t, guards[0].position.y == 0.2)
     testing.expect(t, guards[0].facing.x > 0.99)
-    testing.expect(t, !guards[0].investigation_path_ready)
+    testing.expect(t, !guards[0].investigation.ready)
 }
 
 @(test)
@@ -670,8 +685,8 @@ test_guard_visible_pursuit_does_not_jitter_when_target_moves :: proc(
         }, player_visible = true)
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     previous_position := guards[0].position
     direction_changes := 0
@@ -771,8 +786,8 @@ test_guard_visible_pursuit_uses_navigation_around_obstacle :: proc(
         }, player_visible = true)
 
     guards := []Guard{guard}
-    defer delete(guards[0].investigation_path)
-    defer delete(guards[0].patrol_path)
+    defer delete(guards[0].investigation.path)
+    defer delete(guards[0].patrol.route.path)
 
     routed_around := false
 
