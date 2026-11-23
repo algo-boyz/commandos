@@ -1,17 +1,18 @@
 package main
 
-game_update :: proc(
-    player: ^Player,
-    guards: []Guard,
-    mission: ^Mission,
-    dt: f32,
-) {
+// Advances the whole simulation by dt. This is the single entry point the
+// renderer and the tests both use; it never reads the keyboard.
+game_update :: proc(world: ^World, input: Input, dt: f32) {
     if dt <= 0 {
         return
     }
 
+    player := &world.player
+    guards := world.guards
+    mission := &world.mission
+
     // 1. Update player movement and deliver emitted footsteps.
-    if player_update(player, mission, dt) {
+    if player_update(player, input, mission, dt) {
         noise := Noise_Event{
             position = {
                 player.position.x,

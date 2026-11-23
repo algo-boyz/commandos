@@ -1,7 +1,6 @@
 # Operation Eagle Nest — Greybox v0.1
 
 A small, deliberately readable infiltration sandbox for the Commandos-inspired prototype.
-# Commandos — State of Play
 
 **Last reviewed:** 2026-11-23
 **Repository:** algo-boyz/commandos
