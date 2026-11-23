@@ -219,7 +219,7 @@ bench_navigation :: proc(t: ^testing.T) {
 
         bench_path(
             t, "empty map corner -> corner",
-            &empty, {0.5, 0.5}, {99.5, 99.5}, agent_radius, 20,
+            &empty, {0.5, 0.5}, {99.5, 99.5}, agent_radius, 1,
         )
     }
 
