@@ -182,9 +182,12 @@ bench_navigation :: proc(t: ^testing.T) {
     target_distance := math.sqrt(target_dx*target_dx + target_dy*target_dy)
 
     fmt.printf(
-        "nav bench | mission.json | grid %dx%d = %d cells | %d solid rects | %d solid circles\n",
-        grid_w, grid_h, grid_w * grid_h,
-        len(mission.geometry.solids), len(mission.geometry.circles),
+        "nav bench | extraction centre=(%.1f, %.1f) | resolved target=(%.1f, %.1f) | offset=%.2f\n",
+        extraction_center.x,
+        extraction_center.y,
+        extraction_target.x,
+        extraction_target.y,
+        target_distance,
     )
 
     bench_path(
