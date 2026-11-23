@@ -1,6 +1,7 @@
 package render
 
 import "../actors"
+import "../game"
 import "../mission"
 import "../nav"
 import rl "vendor:raylib"
@@ -24,12 +25,12 @@ mission_point_to_world :: proc(p: mission.Mission_Point, height: f32 = 0) -> rl.
 
 // Draws the 3D scene. Call between BeginMode3D and EndMode3D. debug_path is
 // optional; pass an empty result to draw nothing.
-render_world :: proc(world: World, debug_path: nav.Navigation_Path_Result) {
+render_world :: proc(world: game.World, debug_path: nav.Navigation_Path_Result) {
     // mission_bounds takes a pointer, so give it a local copy to point at.
     lvl := world.level
 
     render_ground(&lvl)
-    render_geometry(world.lvl.geometry)
+    render_geometry(world.level.geometry)
     render_debug_path(debug_path)
     render_objective(world)
     render_extraction(world)
@@ -112,8 +113,8 @@ render_debug_path :: proc(path: nav.Navigation_Path_Result) {
 }
 
 // Objective marker: gold until retrieved, then greyed out.
-render_objective :: proc(world: World) {
-    if world.mission.objective.id == "" {
+render_objective :: proc(world: game.World) {
+    if world.level.objective.id == "" {
         return
     }
 
@@ -123,20 +124,20 @@ render_objective :: proc(world: World) {
     }
 
     rl.DrawCube(
-        {world.mission.objective.x, 0.5, world.mission.objective.y},
+        {world.level.objective.x, 0.5, world.level.objective.y},
         1.2, 1, 1.2,
         color,
     )
 }
 
 // Extraction: faded while locked, solid green once the objective is complete.
-render_extraction :: proc(world: World) {
+render_extraction :: proc(world: game.World) {
     color := rl.Fade(rl.GREEN, 0.3)
     if world.objective_complete {
         color = rl.GREEN
     }
 
-    e := world.mission.extraction
+    e := world.level.extraction
     rl.DrawCylinder({e.x, 0.5, e.y}, e.radius, e.radius, 1, 16, color)
 }
 

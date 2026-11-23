@@ -10,6 +10,10 @@ import "../mission"
 
 NAV_BENCH :: #config(NAV_BENCH, false)
 
+// Matches the player radius in actors.player_init. nav cannot import actors
+// (actors imports nav), so the value is repeated here.
+BENCH_AGENT_RADIUS :: f32(0.8)
+
 BENCH_BURST_FRAMES :: 20
 BENCH_FRAME_BUDGET_MS :: 16.6
 
@@ -84,7 +88,7 @@ bench_nearest_open_cell :: proc(
     target: mission.Mission_Point,
     radius: f32,
 ) -> (mission.Mission_Point, bool) {
-    grid_w, grid_h := nav_grid_dims(mission)
+    grid_w, grid_h := nav_grid_dims(level)
     best := target
     best_dist_sq: f32 = 1e30
     found := false
@@ -118,7 +122,7 @@ bench_navigation :: proc(t: ^testing.T) {
         return
     }
 
-    agent_radius := player_init({}).radius
+    agent_radius := BENCH_AGENT_RADIUS
 
     outer := context.allocator
     backing := make([]byte, 8 * 1024 * 1024, outer)
@@ -128,7 +132,7 @@ bench_navigation :: proc(t: ^testing.T) {
     mem.arena_init(&arena, backing)
     context.allocator = mem.arena_allocator(&arena)
 
-    mission, loaded := mission_load("mission.json")
+    level, loaded := mission.mission_load("mission.json")
     context.allocator = outer
 
     testing.expect(
@@ -140,20 +144,20 @@ bench_navigation :: proc(t: ^testing.T) {
         return
     }
 
-    grid_w, grid_h := nav_grid_dims(&mission)
+    grid_w, grid_h := nav_grid_dims(&level)
     fmt.printf(
         "nav bench | mission.json | grid %dx%d = %d cells | %d solid rects | %d solid circles\n",
         grid_w, grid_h, grid_w * grid_h,
-        len(mission.geometry.solids), len(mission.geometry.circles),
+        len(level.geometry.solids), len(level.geometry.circles),
     )
 
-    extraction_center := Mission_Point{
-        mission.extraction.x,
-        mission.extraction.y,
+    extraction_center := mission.Mission_Point{
+        level.extraction.x,
+        level.extraction.y,
     }
 
     extraction_target, target_valid := bench_nearest_open_cell(
-        &mission,
+        &level,
         extraction_center,
         agent_radius,
     )
@@ -175,14 +179,14 @@ bench_navigation :: proc(t: ^testing.T) {
 
     bench_path(
         t, "mission.json spawn -> extraction (long route)",
-        &mission, mission.player_spawn, extraction_target, agent_radius, 20,
+        &level, level.player_spawn, extraction_target, agent_radius, 20,
     )
 
-    for guard_def in mission.guards {
+    for guard_def in level.guards {
         if len(guard_def.patrol) >= 2 {
             bench_path(
                 t, "mission.json first guard patrol leg (short route)",
-                &mission, guard_def.patrol[0], guard_def.patrol[1], agent_radius, 50,
+                &level, guard_def.patrol[0], guard_def.patrol[1], agent_radius, 50,
             )
             break
         }
@@ -191,20 +195,20 @@ bench_navigation :: proc(t: ^testing.T) {
     // Baseline and scaling tests: 8, 32 and 64 simultaneous replans.
     bench_burst(
         t, "mission.json baseline",
-        &mission, mission.player_spawn, extraction_target, agent_radius, 8,
+        &level, level.player_spawn, extraction_target, agent_radius, 8,
     )
     bench_burst(
         t, "mission.json medium stress",
-        &mission, mission.player_spawn, extraction_target, agent_radius, 32,
+        &level, level.player_spawn, extraction_target, agent_radius, 32,
     )
     bench_burst(
         t, "mission.json high stress",
-        &mission, mission.player_spawn, extraction_target, agent_radius, 64,
+        &level, level.player_spawn, extraction_target, agent_radius, 64,
     )
 
     {
-        empty := Mission{}
-        defer mission_geometry_destroy(&empty.geometry)
+        empty := mission.Mission{}
+        defer mission.mission_geometry_destroy(&empty.geometry)
 
         bench_path(
             t, "empty map corner -> corner",
@@ -213,15 +217,15 @@ bench_navigation :: proc(t: ^testing.T) {
     }
 
     {
-        sealed := Mission{
+        sealed := mission.Mission{
             walls = {
-                Mission_Wall{x = 85, y = 85, w = 10, h = 1},
-                Mission_Wall{x = 85, y = 94, w = 10, h = 1},
-                Mission_Wall{x = 85, y = 85, w = 1, h = 10},
-                Mission_Wall{x = 94, y = 85, w = 1, h = 10},
+                mission.Mission_Wall{x = 85, y = 85, w = 10, h = 1},
+                mission.Mission_Wall{x = 85, y = 94, w = 10, h = 1},
+                mission.Mission_Wall{x = 85, y = 85, w = 1, h = 10},
+                mission.Mission_Wall{x = 94, y = 85, w = 1, h = 10},
             },
         }
-        defer mission_geometry_destroy(&sealed.geometry)
+        defer mission.mission_geometry_destroy(&sealed.geometry)
 
         bench_path(
             t, "sealed goal (unreachable, full-grid expansion)",

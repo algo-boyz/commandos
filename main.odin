@@ -36,8 +36,8 @@ main :: proc() {
         return
     }
 
-    world := render.world_init(level)
-    defer render.world_destroy(&world)
+    world := game.world_init(level)
+    defer game.world_destroy(&world)
 
     camera := iso.camera_init(render.mission_point_to_world(world.player.position, 1), 65)
     camera.follow_enabled = true

@@ -1,5 +1,6 @@
 package game
 
+import "../actors"
 import "../mission"
 
 // Everything the simulation owns while a mission is running.
@@ -27,19 +28,19 @@ world_init :: proc(level: mission.Mission) -> World {
 // Returns the world to its clean initial state. Mission data is untouched,
 // so this is also the restart path.
 world_reset :: proc(world: ^World) {
-    guards_destroy(world.guards)
+    actors.guards_destroy(world.guards)
 
-    world.player = player_init(world.mission.player_spawn)
-    world.guards = guards_init(&world.mission)
+    world.player = actors.player_init(world.level.player_spawn)
+    world.guards = actors.guards_init(&world.level)
 
     // A mission without an objective never gates extraction.
-    world.objective_complete = !mission_has_objective(&world.mission)
+    world.objective_complete = !mission_has_objective(&world.level)
     world.outcome = .PLAYING
 }
 
 world_destroy :: proc(world: ^World) {
-    guards_destroy(world.guards)
-    mission_geometry_destroy(&world.mission.geometry)
+    actors.guards_destroy(world.guards)
+    mission.mission_geometry_destroy(&world.level.geometry)
     world.guards = nil
 }
 

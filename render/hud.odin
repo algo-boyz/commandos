@@ -9,7 +9,7 @@ hud_draw :: proc(world: game.World) {
     rl.DrawText("WASD: move   Ctrl: sneak   Shift: run   E: interact   R: restart", 20, 54, 18, rl.DARKGRAY)
     rl.DrawText("F: camera follow   P: calculate guard path   Shift + drag: pan   Trackpad scroll: zoom", 20, 78, 18, rl.DARKGRAY)
 
-    if world.mission.objective.id != "" {
+    if world.level.objective.id != "" {
         if world.objective_complete {
             rl.DrawText("OBJECTIVE COMPLETE - reach the extraction zone", 20, 102, 20, rl.DARKGREEN)
         } else {

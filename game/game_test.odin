@@ -2,6 +2,7 @@
 package game
 
 import "core:testing"
+import "../mission"
 
 // These tests drive game_update with synthetic Input, so they cover the
 // player -> noise/perception -> awareness -> guard pipeline without raylib
@@ -11,15 +12,15 @@ import "core:testing"
 test_walking_player_is_heard_by_guard_without_line_of_sight :: proc(t: ^testing.T) {
     // A building blocks sight between the player and the guard, so any
     // reaction must come from the footstep alone.
-    buildings := []Mission_Rect{
+    buildings := []mission.Mission_Rect{
         {id = "blocker", x = 14, y = 15, w = 2, h = 10},
     }
-    patrol := []Mission_Point{{20, 20}}
-    guard_defs := []Mission_Guard{
+    patrol := []mission.Mission_Point{{20, 20}}
+    guard_defs := []mission.Mission_Guard{
         {id = "guard", patrol = patrol},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         buildings = buildings,
         guards = guard_defs,
@@ -47,15 +48,15 @@ test_walking_player_is_heard_by_guard_without_line_of_sight :: proc(t: ^testing.
 test_sneaking_player_is_not_heard_at_walking_distance :: proc(t: ^testing.T) {
     // Same geometry as the walking test: ~9.6 units is inside the walking
     // noise radius (18) but outside the sneaking radius (6).
-    buildings := []Mission_Rect{
+    buildings := []mission.Mission_Rect{
         {id = "blocker", x = 14, y = 15, w = 2, h = 10},
     }
-    patrol := []Mission_Point{{20, 20}}
-    guard_defs := []Mission_Guard{
+    patrol := []mission.Mission_Point{{20, 20}}
+    guard_defs := []mission.Mission_Guard{
         {id = "guard", patrol = patrol},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         buildings = buildings,
         guards = guard_defs,
@@ -75,12 +76,12 @@ test_sneaking_player_is_not_heard_at_walking_distance :: proc(t: ^testing.T) {
 test_guard_with_clear_view_builds_suspicion_then_alerts :: proc(t: ^testing.T) {
     // Guard faces +x (the default) with an unobstructed view of a
     // stationary player 10 units away.
-    patrol := []Mission_Point{{20, 20}}
-    guard_defs := []Mission_Guard{
+    patrol := []mission.Mission_Point{{20, 20}}
+    guard_defs := []mission.Mission_Guard{
         {id = "guard", patrol = patrol},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {30, 20},
         guards = guard_defs,
     })
@@ -109,11 +110,11 @@ test_guard_with_clear_view_builds_suspicion_then_alerts :: proc(t: ^testing.T) {
 
 @(test)
 test_player_input_is_stopped_by_mission_geometry :: proc(t: ^testing.T) {
-    buildings := []Mission_Rect{
+    buildings := []mission.Mission_Rect{
         {id = "blocker", x = 14, y = 15, w = 2, h = 10},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         buildings = buildings,
     })

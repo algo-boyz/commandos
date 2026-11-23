@@ -2,13 +2,14 @@
 package nav
 
 import "core:testing"
+import "../mission"
 
 @(test)
 test_navigation_finds_direct_path :: proc(t: ^testing.T) {
-    mission := Mission{}
+    level := mission.Mission{}
 
     path := nav_find_path(
-        &mission,
+        &level,
         {10.5, 10.5},
         {15.5, 15.5},
         0.0,
@@ -24,9 +25,9 @@ test_navigation_finds_direct_path :: proc(t: ^testing.T) {
 
 @(test)
 test_navigation_routes_around_building :: proc(t: ^testing.T) {
-    mission := Mission{
+    level := mission.Mission{
         buildings = {
-            Mission_Rect{
+            mission.Mission_Rect{
                 x = 12,
                 y = 10,
                 w = 5,
@@ -36,7 +37,7 @@ test_navigation_routes_around_building :: proc(t: ^testing.T) {
     }
 
     path := nav_find_path(
-        &mission,
+        &level,
         {10.5, 12.5},
         {18.5, 12.5},
         0.01,
@@ -46,22 +47,22 @@ test_navigation_routes_around_building :: proc(t: ^testing.T) {
     testing.expect(t, path.found)
 
     for point in path.points {
-        testing.expect(t, !mission.point_collides(&mission, point, 0.01))
+        testing.expect(t, !mission.point_collides(&level, point, 0.01))
     }
 }
 
 @(test)
 test_navigation_does_not_cut_diagonal_corners :: proc(t: ^testing.T) {
-    mission := Mission{
+    level := mission.Mission{
         cover = {
-            Mission_Cover{
+            mission.Mission_Cover{
                 kind = "crate",
                 x = 11,
                 y = 10,
                 w = 1,
                 h = 1,
             },
-            Mission_Cover{
+            mission.Mission_Cover{
                 kind = "crate",
                 x = 10,
                 y = 11,
@@ -72,7 +73,7 @@ test_navigation_does_not_cut_diagonal_corners :: proc(t: ^testing.T) {
     }
 
     path := nav_find_path(
-        &mission,
+        &level,
         {10.5, 10.5},
         {11.5, 11.5},
         0.01,
@@ -85,9 +86,9 @@ test_navigation_does_not_cut_diagonal_corners :: proc(t: ^testing.T) {
 
 @(test)
 test_navigation_rejects_blocked_goal :: proc(t: ^testing.T) {
-    mission := Mission{
+    level := mission.Mission{
         buildings = {
-            Mission_Rect{
+            mission.Mission_Rect{
                 x = 20,
                 y = 20,
                 w = 2,
@@ -97,7 +98,7 @@ test_navigation_rejects_blocked_goal :: proc(t: ^testing.T) {
     }
 
     path := nav_find_path(
-        &mission,
+        &level,
         {10.5, 10.5},
         {20.5, 20.5},
         0.01,
@@ -110,10 +111,10 @@ test_navigation_rejects_blocked_goal :: proc(t: ^testing.T) {
 
 @(test)
 test_navigation_rejects_out_of_bounds_positions :: proc(t: ^testing.T) {
-    mission := Mission{}
+    level := mission.Mission{}
 
     path := nav_find_path(
-        &mission,
+        &level,
         {-1, 10},
         {10, 10},
         0.0,

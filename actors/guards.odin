@@ -91,7 +91,7 @@ path_follower_clear :: proc(f: ^Path_Follower) {
 follow_path :: proc(
     guard: ^Guard,
     follower: ^Path_Follower,
-    mission: ^mission.Mission,
+    lvl: ^mission.Mission,
     dt: f32,
 ) -> (remaining: f32, arrived: bool) {
     remaining = dt
@@ -118,19 +118,19 @@ follow_path :: proc(
         }
 
         step := min(guard.speed * remaining, distance)
-        direction := Mission_Point{
+        direction := mission.Mission_Point{
             x = dx / distance,
             y = dy / distance,
         }
 
-        candidate := Mission_Point{
+        candidate := mission.Mission_Point{
             x = guard.position.x + direction.x * step,
             y = guard.position.y + direction.y * step,
         }
 
         // Final collision safety check. If the route is no longer
         // usable, discard it and let the next update replan.
-        if mission.point_collides(mission, candidate, guard.radius) {
+        if mission.point_collides(lvl, candidate, guard.radius) {
             path_follower_clear(follower)
             return remaining, false
         }
@@ -175,7 +175,7 @@ guard_investigation_path_prepare :: proc(
     guard.investigation.goal_y = goal_y
     guard.investigation.ready = true
 
-    path := nav_find_path(
+    path := nav.nav_find_path(
         level,
         guard.position,
         target,
@@ -346,9 +346,9 @@ guard_recovery_begin :: proc(guard: ^Guard) {
 // Init / destroy
 // ---------------------------------------------------------------------------
 
-guards_init :: proc(mission: ^mission.Mission) -> []Guard {
-    guards := make([]Guard, len(mission.guards), context.allocator)
-    for definition, i in mission.guards {
+guards_init :: proc(lvl: ^mission.Mission) -> []Guard {
+    guards := make([]Guard, len(lvl.guards), context.allocator)
+    for definition, i in lvl.guards {
         speed := definition.speed
         if speed <= 0 {
             speed = GUARD_DEFAULT_SPEED
@@ -408,7 +408,7 @@ guard_arrive :: proc(guard: ^Guard) {
 
 guard_patrol_update :: proc(
     guard: ^Guard,
-    mission: ^mission.Mission,
+    lvl: ^mission.Mission,
     dt: f32,
 ) {
     if dt <= 0 || guard.speed <= 0 {
@@ -427,7 +427,7 @@ guard_patrol_update :: proc(
             }
         }
 
-        guard_patrol_path_prepare(guard, mission)
+        guard_patrol_path_prepare(guard, lvl)
 
         if !guard.patrol.route.found {
             return
@@ -436,7 +436,7 @@ guard_patrol_update :: proc(
         left, arrived := follow_path(
             guard,
             &guard.patrol.route,
-            mission,
+            lvl,
             remaining_time,
         )
         remaining_time = left

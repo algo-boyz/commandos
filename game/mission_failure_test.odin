@@ -2,6 +2,7 @@
 package game
 
 import "core:testing"
+import "../mission"
 
 // Failure: any guard touching the player ends the mission. Touching means the
 // guard and player circles overlap (guard radius + player radius = 1.6 with
@@ -10,12 +11,12 @@ import "core:testing"
 @(test)
 test_guard_touching_player_fails_the_mission :: proc(t: ^testing.T) {
     // A stationary, unaware guard 0.5 units from the player is touching.
-    patrol := []Mission_Point{{10.5, 20}}
-    guard_defs := []Mission_Guard{
+    patrol := []mission.Mission_Point{{10.5, 20}}
+    guard_defs := []mission.Mission_Guard{
         {id = "guard", patrol = patrol},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         guards = guard_defs,
     })
@@ -33,11 +34,11 @@ test_guard_just_outside_touch_distance_does_not_fail_the_mission :: proc(t: ^tes
     // Combined radii are 1.6. At 1.7 the circles do not overlap; at 1.5
     // they do. The guard faces away (default +x), so it neither sees nor
     // hears the stationary player and stays put.
-    far_patrol := []Mission_Point{{11.7, 20}}
-    far_defs := []Mission_Guard{
+    far_patrol := []mission.Mission_Point{{11.7, 20}}
+    far_defs := []mission.Mission_Guard{
         {id = "far", patrol = far_patrol},
     }
-    far_world := world_init(Mission{
+    far_world := world_init(mission.Mission{
         player_spawn = {10, 20},
         guards = far_defs,
     })
@@ -48,11 +49,11 @@ test_guard_just_outside_touch_distance_does_not_fail_the_mission :: proc(t: ^tes
     }
     testing.expect(t, far_world.outcome == .PLAYING)
 
-    near_patrol := []Mission_Point{{11.5, 20}}
-    near_defs := []Mission_Guard{
+    near_patrol := []mission.Mission_Point{{11.5, 20}}
+    near_defs := []mission.Mission_Guard{
         {id = "near", patrol = near_patrol},
     }
-    near_world := world_init(Mission{
+    near_world := world_init(mission.Mission{
         player_spawn = {10, 20},
         guards = near_defs,
     })
@@ -66,12 +67,12 @@ test_guard_just_outside_touch_distance_does_not_fail_the_mission :: proc(t: ^tes
 test_being_caught_at_extraction_is_a_failure_not_a_success :: proc(t: ^testing.T) {
     // No objective, so extraction is available immediately and the player is
     // standing in the zone. A guard touching them in the same frame wins.
-    patrol := []Mission_Point{{30.5, 20}}
-    guard_defs := []Mission_Guard{
+    patrol := []mission.Mission_Point{{30.5, 20}}
+    guard_defs := []mission.Mission_Guard{
         {id = "guard", patrol = patrol},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {30, 20},
         extraction = {x = 30, y = 20, radius = 3},
         guards = guard_defs,
@@ -91,12 +92,12 @@ test_being_caught_at_extraction_is_a_failure_not_a_success :: proc(t: ^testing.T
 
 @(test)
 test_restart_after_failure_returns_to_clean_initial_state :: proc(t: ^testing.T) {
-    patrol := []Mission_Point{{10.5, 20}}
-    guard_defs := []Mission_Guard{
+    patrol := []mission.Mission_Point{{10.5, 20}}
+    guard_defs := []mission.Mission_Guard{
         {id = "guard", patrol = patrol},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         objective = {id = "documents", x = 12, y = 20},
         guards = guard_defs,
@@ -122,12 +123,12 @@ test_restart_after_failure_returns_to_clean_initial_state :: proc(t: ^testing.T)
 test_alerted_guard_chases_stationary_player_until_it_catches_them :: proc(t: ^testing.T) {
     // Full pipeline: the guard sees the player, builds suspicion, alerts,
     // pursues in a straight line and touches them. The player never moves.
-    patrol := []Mission_Point{{20, 20}}
-    guard_defs := []Mission_Guard{
+    patrol := []mission.Mission_Point{{20, 20}}
+    guard_defs := []mission.Mission_Guard{
         {id = "guard", patrol = patrol},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {30, 20},
         guards = guard_defs,
     })

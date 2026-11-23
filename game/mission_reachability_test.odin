@@ -1,8 +1,12 @@
 
-package mission
+package game
 
 import "core:mem"
 import "core:testing"
+
+import "../actors"
+import "../mission"
+import "../nav"
 
 // Loads the real mission.json and checks the mission is winnable on the
 // actual map: from the spawn, the player can reach a spot from which the
@@ -17,13 +21,13 @@ import "core:testing"
 // reached from `from` by an agent of `agent_radius`, using the same A*
 // that the guards use.
 cell_within_reach :: proc(
-    mission: ^Mission,
-    from: Mission_Point,
-    target: Mission_Point,
+    level: ^mission.Mission,
+    from: mission.Mission_Point,
+    target: mission.Mission_Point,
     reach: f32,
     agent_radius: f32,
 ) -> bool {
-    grid_w, grid_h := nav_grid_dims(mission)
+    grid_w, grid_h := nav.nav_grid_dims(level)
     min_x := max(int(target.x - reach) - 1, 0)
     max_x := min(int(target.x + reach) + 1, grid_w - 1)
     min_y := max(int(target.y - reach) - 1, 0)
@@ -31,7 +35,7 @@ cell_within_reach :: proc(
 
     for y in min_y..=max_y {
         for x in min_x..=max_x {
-            centre := nav_cell_center(x, y)
+            centre := nav.nav_cell_center(x, y)
 
             dx := centre.x - target.x
             dy := centre.y - target.y
@@ -41,7 +45,7 @@ cell_within_reach :: proc(
 
             // Cells inside solid geometry are rejected immediately by
             // nav_find_path, so only genuinely open cells cost a search.
-            path := nav_find_path(mission, from, centre, agent_radius)
+            path := nav.nav_find_path(level, from, centre, agent_radius)
             if path.found {
                 return true
             }
@@ -63,7 +67,7 @@ test_real_mission_objective_and_extraction_are_reachable_from_spawn :: proc(t: ^
     mem.arena_init(&arena, backing)
     context.allocator = mem.arena_allocator(&arena)
 
-    mission, loaded := mission_load("mission.json")
+    level, loaded := mission.mission_load("mission.json")
     testing.expect(
         t,
         loaded,
@@ -73,24 +77,24 @@ test_real_mission_objective_and_extraction_are_reachable_from_spawn :: proc(t: ^
         return
     }
 
-    player_radius := player_init({}).radius
+    player_radius := actors.player_init({}).radius
 
-    testing.expect(t, mission_has_objective(&mission))
-    testing.expect(t, mission.extraction.radius > 0)
+    testing.expect(t, mission_has_objective(&level))
+    testing.expect(t, level.extraction.radius > 0)
     testing.expect(
         t,
-        !mission.point_collides(&mission, mission.player_spawn, player_radius),
+        !mission.point_collides(&level, level.player_spawn, player_radius),
         "player spawn is inside solid geometry",
     )
 
-    objective := Mission_Point{mission.objective.x, mission.objective.y}
-    extraction := Mission_Point{mission.extraction.x, mission.extraction.y}
+    objective := mission.Mission_Point{level.objective.x, level.objective.y}
+    extraction := mission.Mission_Point{level.extraction.x, level.extraction.y}
 
     testing.expect(
         t,
         cell_within_reach(
-            &mission,
-            mission.player_spawn,
+            &level,
+            level.player_spawn,
             objective,
             OBJECTIVE_INTERACT_RADIUS,
             player_radius,
@@ -101,10 +105,10 @@ test_real_mission_objective_and_extraction_are_reachable_from_spawn :: proc(t: ^
     testing.expect(
         t,
         cell_within_reach(
-            &mission,
-            mission.player_spawn,
+            &level,
+            level.player_spawn,
             extraction,
-            mission.extraction.radius,
+            level.extraction.radius,
             player_radius,
         ),
         "no reachable position inside the extraction zone",

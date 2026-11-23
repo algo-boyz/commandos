@@ -171,7 +171,7 @@ mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> Mission_G
         append(&solids, Solid_Rect{x = b.x, y = b.y, w = b.w, h = b.h, kind = .BUILDING})
     }
 
-    for wall in mission.walls {
+    for wall in lvl.walls {
         if len(wall.openings) == 0 {
             append(&solids, Solid_Rect{x = wall.x, y = wall.y, w = wall.w, h = wall.h, kind = .WALL})
             continue
@@ -210,7 +210,7 @@ mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> Mission_G
         }
     }
 
-    for item in mission.cover {
+    for item in lvl.cover {
         switch item.kind {
         case "crate":
             append(&solids, Solid_Rect{x = item.x, y = item.y, w = item.w, h = item.h, kind = .CRATE})
@@ -290,5 +290,5 @@ mission_collides :: proc(
     point: Mission_Point,
     radius: f32,
 ) -> bool {
-    return mission.point_collides(lvl, point, radius)
+    return point_collides(lvl, point, radius)
 }

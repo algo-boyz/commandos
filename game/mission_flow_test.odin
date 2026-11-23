@@ -2,6 +2,7 @@
 package game
 
 import "core:testing"
+import "../mission"
 
 // End-to-end mission flow, driven through game_update with synthetic Input:
 // objective interaction, extraction gating, success, frozen world, restart.
@@ -11,7 +12,7 @@ import "core:testing"
 
 @(test)
 test_interact_out_of_range_does_not_complete_objective :: proc(t: ^testing.T) {
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         objective = {id = "documents", x = 30, y = 20},
         extraction = {x = 60, y = 20, radius = 3},
@@ -28,7 +29,7 @@ test_interact_out_of_range_does_not_complete_objective :: proc(t: ^testing.T) {
 
 @(test)
 test_interact_in_range_completes_objective_only_when_pressed :: proc(t: ^testing.T) {
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         objective = {id = "documents", x = 12, y = 20},
         extraction = {x = 60, y = 20, radius = 3},
@@ -47,7 +48,7 @@ test_interact_in_range_completes_objective_only_when_pressed :: proc(t: ^testing
 @(test)
 test_extraction_does_not_succeed_before_objective_is_complete :: proc(t: ^testing.T) {
     // Spawn inside the extraction zone with the objective out of reach.
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {30, 20},
         objective = {id = "documents", x = 12, y = 20},
         extraction = {x = 30, y = 20, radius = 3},
@@ -64,7 +65,7 @@ test_extraction_does_not_succeed_before_objective_is_complete :: proc(t: ^testin
 
 @(test)
 test_mission_without_objective_can_extract_immediately :: proc(t: ^testing.T) {
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {30, 20},
         extraction = {x = 30, y = 20, radius = 3},
     })
@@ -79,7 +80,7 @@ test_mission_without_objective_can_extract_immediately :: proc(t: ^testing.T) {
 
 @(test)
 test_complete_objective_then_walk_to_extraction_succeeds_and_freezes_world :: proc(t: ^testing.T) {
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         objective = {id = "documents", x = 12, y = 20},
         extraction = {x = 30, y = 20, radius = 3},
@@ -114,12 +115,12 @@ test_complete_objective_then_walk_to_extraction_succeeds_and_freezes_world :: pr
 test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T) {
     // Parked well off the player's route along y = 20: more than the
     // footstep noise radius away, and never close enough to touch.
-    patrol := []Mission_Point{{20, 40}}
-    guard_defs := []Mission_Guard{
+    patrol := []mission.Mission_Point{{20, 40}}
+    guard_defs := []mission.Mission_Guard{
         {id = "guard", patrol = patrol},
     }
 
-    world := world_init(Mission{
+    world := world_init(mission.Mission{
         player_spawn = {10, 20},
         objective = {id = "documents", x = 12, y = 20},
         extraction = {x = 30, y = 20, radius = 3},

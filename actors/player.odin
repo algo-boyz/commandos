@@ -1,7 +1,5 @@
 package actors
 
-import "../actors"
-import "../game"
 import "../mission"
 import "core:math"
 
@@ -135,7 +133,7 @@ player_update :: proc(
         p.velocity.y = 0
     }
 
-    bounds := mission_bounds(level)
+    bounds := mission.mission_bounds(level)
     p.position.x = math.clamp(p.position.x, p.radius, bounds.width - p.radius)
     p.position.y = math.clamp(p.position.y, p.radius, bounds.height - p.radius)
 

@@ -2,16 +2,17 @@
 package actors
 
 import "core:testing"
+import "../mission"
 
 @(test)
 test_guard_vision_range :: proc(t: ^testing.T) {
-    mission := Mission{}
+    level := mission.Mission{}
 
     visible := guard_can_see(
         {0, 0},
         {1, 0},
         {20, 0},
-        &mission,
+        &level,
         VISION_DEFAULT,
     )
 
@@ -19,7 +20,7 @@ test_guard_vision_range :: proc(t: ^testing.T) {
         {0, 0},
         {1, 0},
         {25, 0},
-        &mission,
+        &level,
         VISION_DEFAULT,
     )
 
@@ -29,13 +30,13 @@ test_guard_vision_range :: proc(t: ^testing.T) {
 
 @(test)
 test_guard_vision_fov :: proc(t: ^testing.T) {
-    mission := Mission{}
+    level := mission.Mission{}
 
     directly_ahead := guard_can_see(
         {0, 0},
         {1, 0},
         {10, 0},
-        &mission,
+        &level,
         VISION_DEFAULT,
     )
 
@@ -43,7 +44,7 @@ test_guard_vision_fov :: proc(t: ^testing.T) {
         {0, 0},
         {1, 0},
         {-10, 0},
-        &mission,
+        &level,
         VISION_DEFAULT,
     )
 
@@ -51,7 +52,7 @@ test_guard_vision_fov :: proc(t: ^testing.T) {
         {0, 0},
         {1, 0},
         {5, 8},
-        &mission,
+        &level,
         VISION_DEFAULT,
     )
 
@@ -62,9 +63,9 @@ test_guard_vision_fov :: proc(t: ^testing.T) {
 
 @(test)
 test_guard_vision_building_occlusion :: proc(t: ^testing.T) {
-    mission := Mission{
+    level := mission.Mission{
         buildings = {
-            Mission_Rect{
+            mission.Mission_Rect{
                 x = 4,
                 y = -2,
                 w = 2,
@@ -77,7 +78,7 @@ test_guard_vision_building_occlusion :: proc(t: ^testing.T) {
         {0, 0},
         {1, 0},
         {10, 0},
-        &mission,
+        &level,
         VISION_DEFAULT,
     )
 
@@ -86,15 +87,15 @@ test_guard_vision_building_occlusion :: proc(t: ^testing.T) {
 
 @(test)
 test_guard_vision_wall_opening :: proc(t: ^testing.T) {
-    mission := Mission{
+    level := mission.Mission{
         walls = {
-            Mission_Wall{
+            mission.Mission_Wall{
                 x = 10,
                 y = 0,
                 w = 1,
                 h = 20,
                 openings = {
-                    Mission_Opening{
+                    mission.Mission_Opening{
                         y = 8,
                         h = 4,
                     },
@@ -107,7 +108,7 @@ test_guard_vision_wall_opening :: proc(t: ^testing.T) {
         {5, 10},
         {1, 0},
         {15, 10},
-        &mission,
+        &level,
         VISION_DEFAULT,
     )
 
@@ -115,7 +116,7 @@ test_guard_vision_wall_opening :: proc(t: ^testing.T) {
         {5, 5},
         {1, 0},
         {15, 5},
-        &mission,
+        &level,
         VISION_DEFAULT,
     )
 

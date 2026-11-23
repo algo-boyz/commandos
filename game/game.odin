@@ -1,5 +1,10 @@
 package game
 
+import "../actors"
+
+// One frame of player intent. Defined in actors (player_update consumes it)
+// and re-exported here so callers can keep writing game.Input.
+Input :: actors.Input
 
 // How close the player must be to the objective to interact with it.
 // Building interiors are solid in the greybox, so this must be large enough
@@ -23,30 +28,30 @@ game_update :: proc(world: ^World, input: Input, dt: f32) {
 
     player := &world.player
     guards := world.guards
-    lvl := &world.mission
+    lvl := &world.level
 
     // 1. Update player movement and deliver emitted footsteps.
-    if player_update(player, input, lvl, dt) {
-        noise := Noise_Event{
+    if actors.player_update(player, input, lvl, dt) {
+        noise := actors.Noise_Event{
             position = player.position,
             radius = player.footstep_noise_radius,
             intensity = player.footstep_noise_intensity,
         }
 
         for i in 0..<len(guards) {
-            guard_hear_noise(&guards[i], noise)
+            actors.guard_hear_noise(&guards[i], noise)
         }
     }
 
     // 2. Perception and awareness belong to simulation,
     //    not the rendering pass.
-    vision := VISION_DEFAULT
-    awareness_config := AWARENESS_DEFAULT
+    vision := actors.VISION_DEFAULT
+    awareness_config := actors.AWARENESS_DEFAULT
 
     for i in 0..<len(guards) {
         guard := &guards[i]
 
-        sees_player := guard_can_see(
+        sees_player := actors.guard_can_see(
             guard.position,
             guard.facing,
             player.position,
@@ -56,7 +61,7 @@ game_update :: proc(world: ^World, input: Input, dt: f32) {
 
         guard.player_visible = sees_player
 
-        guard_awareness_update(
+        actors.guard_awareness_update(
             &guard.awareness,
             sees_player,
             player.position,
@@ -66,7 +71,7 @@ game_update :: proc(world: ^World, input: Input, dt: f32) {
     }
 
     // 3. Behaviour reacts to this frame's perception.
-    guard_update(guards, lvl, dt)
+    actors.guard_update(guards, lvl, dt)
 
     // 4. Objective and extraction progression.
     mission_progress_update(world, input)
@@ -99,7 +104,7 @@ mission_progress_update :: proc(world: ^World, input: Input) {
 
     if world.objective_complete &&
        lvl.extraction.radius > 0 &&
-       render.world_player_within(
+       world_player_within(
            world,
            lvl.extraction.x,
            lvl.extraction.y,
