@@ -39,6 +39,7 @@ The README's original first-implementation checklist is therefore historical, no
 | navigation_test.odin | Direct paths, building avoidance, diagonal corner rules, blocked goals and out-of-bounds positions |
 | game_test.odin | Pipeline through `game_update` with synthetic input: footsteps heard without line of sight, sneaking quieter than walking, sight building suspicion into an alert, player input stopped by geometry |
 | mission_flow_test.odin | Objective interaction range and edge-triggering, extraction gating, missions without an objective, success and frozen world, restart returning to a clean state |
+| mission_reachability_test.odin | Loads the real `mission.json` and checks, with the guards' own A*, that a position within `OBJECTIVE_INTERACT_RADIUS` of the objective and a position inside the extraction zone are both reachable from the spawn. Run tests from the repository root so `mission.json` is found. |
 
 Do not add duplicate tests for these behaviours without first identifying a specific uncovered case. Prefer strengthening an existing regression test or adding an integration test that covers a real gap.
 
@@ -48,7 +49,7 @@ Do not add duplicate tests for these behaviours without first identifying a spec
 - `mission.json` also contains `routes`, which the runtime Mission structure does not model. Treat them as design notes, not an implemented gameplay system.
 - Building interiors are solid boxes in the greybox, so the documents objective (inside the barracks) is reached from the building's outer face. `OBJECTIVE_INTERACT_RADIUS` is sized for that; revisit it if buildings gain walkable interiors.
 - A mission with no objective (empty id) has extraction available from the start.
-- The guard tests exercise AI functions and update behaviour directly. `game_test.odin` and `mission_flow_test.odin` cover the pipeline and mission flow through `game_update` with synthetic input, but only on small hand-built missions, not on `mission.json` itself.
+- The guard tests exercise AI functions and update behaviour directly. `game_test.odin` and `mission_flow_test.odin` cover the pipeline and mission flow through `game_update` with synthetic input on small hand-built missions; `mission_reachability_test.odin` covers the real `mission.json`, but only for reachability, not for a full playthrough.
 - Within one `game_update`, a heard footstep turns the guard towards the noise before the perception pass runs. A guard with a clear view of the player can therefore hear, turn and see in the same frame, and sight then replaces the sound as the last-known source.
 - The current jitter regression checks moving-target pursuit over time and caps coarse direction changes at 80 over 400 updates. It is useful coverage, but the threshold is permissive and should be treated as a regression guard, not proof of perfect pursuit.
 - Navigation is a 100 × 100 grid A* implementation. Its current open-set selection scans the grid; optimise only if profiling shows it is a real bottleneck.
@@ -60,8 +61,7 @@ The objective, extraction gating, success outcome and restart are implemented (s
 
 1. Failure state — decide what ends a mission in failure (for example an alerted guard reaching the player) and expose it as a `Mission_Outcome`. Only `PLAYING` and `SUCCESS` exist today.
 2. Playable feedback — the greybox HUD shows objective status and the outcome, but not guard awareness beyond sphere colour.
-3. Flow validation on the real mission — the flow tests use small hand-built missions. Add a test that loads `mission.json` and checks that the objective and extraction are reachable from the spawn.
-4. Manual playthrough — the objective, extraction and restart loop has not yet been played through in a running build.
+3. Manual playthrough — the objective, extraction and restart loop is covered by tests but has not yet been played through in a running build.
 
 These are the priorities for the first playable mission. New AI features, Gaussian rendering, character animation, inventory, multiple commandos and a mission editor should not displace this milestone unless they are required to make the core loop playable.
 
