@@ -9,6 +9,8 @@ input_poll :: proc() -> Input {
     input := Input{
         sneak = rl.IsKeyDown(rl.KeyboardKey.LEFT_CONTROL),
         run = rl.IsKeyDown(rl.KeyboardKey.LEFT_SHIFT),
+        interact = rl.IsKeyPressed(rl.KeyboardKey.E),
+        restart = rl.IsKeyPressed(rl.KeyboardKey.R),
     }
 
     if rl.IsKeyDown(rl.KeyboardKey.W) do input.move.y -= 1
@@ -125,12 +127,32 @@ main :: proc() {
             rl.DARKBLUE,
         )
 
-        // Extraction.
+        // Objective marker: gold until retrieved, then greyed out.
+        if mission_has_objective(&world.mission) {
+            objective_color := rl.GOLD
+            if world.objective_complete {
+                objective_color = rl.GRAY
+            }
+
+            rl.DrawCube(
+                {world.mission.objective.x, 0.5, world.mission.objective.y},
+                1.2, 1, 1.2,
+                objective_color,
+            )
+        }
+
+        // Extraction: faded while locked, solid green once the objective
+        // is complete.
+        extraction_color := rl.Fade(rl.GREEN, 0.3)
+        if world.objective_complete {
+            extraction_color = rl.GREEN
+        }
+
         rl.DrawCylinder(
             {world.mission.extraction.x, 0.5, world.mission.extraction.y},
             world.mission.extraction.radius, world.mission.extraction.radius, 1,
             16,
-            rl.GREEN,
+            extraction_color,
         )
 
         // Guards
@@ -166,8 +188,20 @@ main :: proc() {
         rl.EndMode3D()
 
         rl.DrawText("OPERATION EAGLE NEST", 20, 20, 24, rl.DARKGRAY)
-        rl.DrawText("WASD: move   F: camera follow   P: calculate guard path", 20, 54, 18, rl.DARKGRAY)
-        rl.DrawText("Shift + drag: pan   Trackpad scroll: zoom", 20, 78, 18, rl.DARKGRAY)
+        rl.DrawText("WASD: move   Ctrl: sneak   Shift: run   E: interact   R: restart", 20, 54, 18, rl.DARKGRAY)
+        rl.DrawText("F: camera follow   P: calculate guard path   Shift + drag: pan   Trackpad scroll: zoom", 20, 78, 18, rl.DARKGRAY)
+
+        if mission_has_objective(&world.mission) {
+            if world.objective_complete {
+                rl.DrawText("OBJECTIVE COMPLETE - reach the extraction zone", 20, 102, 20, rl.DARKGREEN)
+            } else {
+                rl.DrawText("OBJECTIVE: retrieve the documents (press E near them)", 20, 102, 20, rl.DARKGRAY)
+            }
+        }
+
+        if world.outcome == .SUCCESS {
+            rl.DrawText("MISSION COMPLETE - press R to restart", 20, 134, 30, rl.DARKGREEN)
+        }
 
         rl.EndDrawing()
     }

@@ -1,17 +1,36 @@
 package main
 
+Mission_Outcome :: enum u8 {
+    PLAYING,
+    SUCCESS,
+}
+
 // Everything the simulation owns while a mission is running.
 // Rendering reads from a World; it never mutates one.
 World :: struct {
     mission: Mission,
     player: Player,
     guards: []Guard,
+    objective_complete: bool,
+    outcome: Mission_Outcome,
+}
+
+mission_has_objective :: proc(mission: ^Mission) -> bool {
+    return mission.objective.id != ""
 }
 
 // Builds a World from a loaded mission. The World takes the mission by
 // value; guards keep slice views into the mission's patrol data.
 world_init :: proc(mission: Mission) -> World {
     world := World{mission = mission}
+    world_reset(&world)
+    return world
+}
+
+// Returns the world to its clean initial state. Mission data is untouched,
+// so this is also the restart path.
+world_reset :: proc(world: ^World) {
+    guards_destroy(world.guards)
 
     world.player = player_init({
         world.mission.player_spawn.x,
@@ -20,10 +39,19 @@ world_init :: proc(mission: Mission) -> World {
     })
     world.guards = guards_init(&world.mission)
 
-    return world
+    // A mission without an objective never gates extraction.
+    world.objective_complete = !mission_has_objective(&world.mission)
+    world.outcome = .PLAYING
 }
 
 world_destroy :: proc(world: ^World) {
     guards_destroy(world.guards)
     world.guards = nil
+}
+
+// True when the player's centre is within radius of a mission-space point.
+world_player_within :: proc(world: ^World, x, y, radius: f32) -> bool {
+    dx := world.player.position.x - x
+    dy := world.player.position.z - y
+    return dx*dx + dy*dy <= radius*radius
 }

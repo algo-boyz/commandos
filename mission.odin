@@ -56,9 +56,21 @@ Mission_Extraction :: struct {
     radius: f32,
 }
 
+// A retrieve-style objective: the player completes it by interacting while
+// within OBJECTIVE_INTERACT_RADIUS of (x, y). An empty id means the mission
+// has no objective and extraction is available from the start.
+Mission_Objective :: struct {
+    id: string,
+    kind: string `json:"type"`,
+    x: f32,
+    y: f32,
+    building: string,
+}
+
 Mission :: struct {
     player_spawn: Mission_Point `json:"playerSpawn"`,
     extraction: Mission_Extraction,
+    objective: Mission_Objective,
     buildings: []Mission_Rect,
     walls: []Mission_Wall,
     cover: []Mission_Cover,
