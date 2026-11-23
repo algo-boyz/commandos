@@ -112,7 +112,9 @@ test_complete_objective_then_walk_to_extraction_succeeds_and_freezes_world :: pr
 
 @(test)
 test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T) {
-    patrol := []Mission_Point{{20, 20}}
+    // Parked well off the player's route along y = 20: more than the
+    // footstep noise radius away, and never close enough to touch.
+    patrol := []Mission_Point{{20, 40}}
     guard_defs := []Mission_Guard{
         {id = "guard", patrol = patrol},
     }
@@ -151,7 +153,7 @@ test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T)
 
     testing.expect(t, len(world.guards) == 1)
     testing.expect(t, world.guards[0].position.x == 20)
-    testing.expect(t, world.guards[0].position.y == 20)
+    testing.expect(t, world.guards[0].position.y == 40)
     testing.expect(t, world.guards[0].awareness.state == .UNAWARE)
 
     // And the mission is playable again from the clean state.

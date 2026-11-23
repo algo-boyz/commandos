@@ -201,6 +201,8 @@ main :: proc() {
 
         if world.outcome == .SUCCESS {
             rl.DrawText("MISSION COMPLETE - press R to restart", 20, 134, 30, rl.DARKGREEN)
+        } else if world.outcome == .FAILED {
+            rl.DrawText("CAUGHT - press R to restart", 20, 134, 30, rl.MAROON)
         }
 
         rl.EndDrawing()

@@ -78,10 +78,19 @@ game_update :: proc(world: ^World, input: Input, dt: f32) {
     mission_progress_update(world, input)
 }
 
-// Completes the objective on interaction, and ends the mission in success
+// Ends the mission in failure if a guard has touched the player. Otherwise
+// completes the objective on interaction, and ends the mission in success
 // once the player reaches extraction with the objective complete.
+//
+// Being caught takes precedence over everything else in the same frame,
+// including reaching extraction.
 mission_progress_update :: proc(world: ^World, input: Input) {
     mission := &world.mission
+
+    if world_player_caught(world) {
+        world.outcome = .FAILED
+        return
+    }
 
     if input.interact &&
        !world.objective_complete &&

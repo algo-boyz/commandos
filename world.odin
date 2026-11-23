@@ -3,6 +3,8 @@ package main
 Mission_Outcome :: enum u8 {
     PLAYING,
     SUCCESS,
+    // A guard touched the player.
+    FAILED,
 }
 
 // Everything the simulation owns while a mission is running.
@@ -47,6 +49,23 @@ world_reset :: proc(world: ^World) {
 world_destroy :: proc(world: ^World) {
     guards_destroy(world.guards)
     world.guards = nil
+}
+
+// True when any guard overlaps the player. Being touched ends the mission
+// whatever the guard's awareness state: an unaware patrol that walks into the
+// player counts as much as an alerted pursuer.
+world_player_caught :: proc(world: ^World) -> bool {
+    for guard in world.guards {
+        dx := guard.position.x - world.player.position.x
+        dy := guard.position.y - world.player.position.z
+        reach := guard.radius + world.player.radius
+
+        if dx*dx + dy*dy <= reach*reach {
+            return true
+        }
+    }
+
+    return false
 }
 
 // True when the player's centre is within radius of a mission-space point.

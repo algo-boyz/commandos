@@ -24,6 +24,7 @@ A small, deliberately readable infiltration sandbox for the Commandos-inspired p
 - A headless simulation entry point: `game_update(world, input, dt)`. `Input` is a plain struct filled from the keyboard in `main.odin`, and `World` owns the mission, player, guards and mission progress, so the whole simulation runs without raylib input.
 - The documents objective: modelled in mission data, completed by pressing E within `OBJECTIVE_INTERACT_RADIUS` of it.
 - Extraction gated on the objective, a success outcome that freezes the world, and restart (R) via `world_reset`.
+- Failure: any guard touching the player (overlapping circles) ends the mission as `FAILED`, whatever the guard's awareness state. The world freezes until restart.
 - Greybox feedback: objective marker, locked/unlocked extraction pad, objective status text and a mission-complete banner.
 
 The README's original first-implementation checklist is therefore historical, not a list of work that is still wholly outstanding.
@@ -39,6 +40,7 @@ The README's original first-implementation checklist is therefore historical, no
 | navigation_test.odin | Direct paths, building avoidance, diagonal corner rules, blocked goals and out-of-bounds positions |
 | game_test.odin | Pipeline through `game_update` with synthetic input: footsteps heard without line of sight, sneaking quieter than walking, sight building suspicion into an alert, player input stopped by geometry |
 | mission_flow_test.odin | Objective interaction range and edge-triggering, extraction gating, missions without an objective, success and frozen world, restart returning to a clean state |
+| mission_failure_test.odin | A guard touching the player fails the mission, the exact touch distance, failure winning over extraction in the same frame, frozen world, restart after failure, and a full see-alert-chase-catch pipeline |
 | mission_reachability_test.odin | Loads the real `mission.json` and checks, with the guards' own A*, that a position within `OBJECTIVE_INTERACT_RADIUS` of the objective and a position inside the extraction zone are both reachable from the spawn. Run tests from the repository root so `mission.json` is found. |
 
 Do not add duplicate tests for these behaviours without first identifying a specific uncovered case. Prefer strengthening an existing regression test or adding an integration test that covers a real gap.
@@ -49,6 +51,7 @@ Do not add duplicate tests for these behaviours without first identifying a spec
 - `mission.json` also contains `routes`, which the runtime Mission structure does not model. Treat them as design notes, not an implemented gameplay system.
 - Building interiors are solid boxes in the greybox, so the documents objective (inside the barracks) is reached from the building's outer face. `OBJECTIVE_INTERACT_RADIUS` is sized for that; revisit it if buildings gain walkable interiors.
 - A mission with no objective (empty id) has extraction available from the start.
+- Being caught is checked before the objective and extraction in `mission_progress_update`, so a guard touching the player on the same frame they reach extraction is a failure. Tests that walk the player across a map must keep guards off the route.
 - The guard tests exercise AI functions and update behaviour directly. `game_test.odin` and `mission_flow_test.odin` cover the pipeline and mission flow through `game_update` with synthetic input on small hand-built missions; `mission_reachability_test.odin` covers the real `mission.json`, but only for reachability, not for a full playthrough.
 - Within one `game_update`, a heard footstep turns the guard towards the noise before the perception pass runs. A guard with a clear view of the player can therefore hear, turn and see in the same frame, and sight then replaces the sound as the last-known source.
 - The current jitter regression checks moving-target pursuit over time and caps coarse direction changes at 80 over 400 updates. It is useful coverage, but the threshold is permissive and should be treated as a regression guard, not proof of perfect pursuit.
@@ -59,9 +62,9 @@ Do not add duplicate tests for these behaviours without first identifying a spec
 
 The objective, extraction gating, success outcome and restart are implemented (see the baseline above). What remains:
 
-1. Failure state — decide what ends a mission in failure (for example an alerted guard reaching the player) and expose it as a `Mission_Outcome`. Only `PLAYING` and `SUCCESS` exist today.
-2. Playable feedback — the greybox HUD shows objective status and the outcome, but not guard awareness beyond sphere colour.
-3. Manual playthrough — the objective, extraction and restart loop is covered by tests but has not yet been played through in a running build.
+1. Playable feedback — the greybox HUD shows objective status and the outcome, but not guard awareness beyond sphere colour.
+2. Manual playthrough — the objective, extraction, failure and restart loop is covered by tests but has not yet been played through in a running build.
+3. Failure tuning — touching is currently instant failure, so patrol routes and guard speed decide how forgiving the mission is. Judge that in a playthrough before changing the rule.
 
 These are the priorities for the first playable mission. New AI features, Gaussian rendering, character animation, inventory, multiple commandos and a mission editor should not displace this milestone unless they are required to make the core loop playable.
 
