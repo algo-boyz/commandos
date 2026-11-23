@@ -53,7 +53,7 @@ bench_path :: proc(
     }
 
     fmt.printf(
-        "nav bench | %s | found=%v | avg %.1f us | min %.1f us | max %.1f us | %d runs",
+        "nav bench | %s | found=%v | avg %.1f us | min %.1f us | max %.1f us | %d runs\n",
         label, found, total_us / f64(iterations), min_us, max_us, iterations,
     )
 }
@@ -84,8 +84,9 @@ bench_burst :: proc(
     }
 
     fmt.printf(
-        "nav bench | %s | %d paths per frame | avg %.2f ms/frame | worst %.2f ms/frame | budget 16.6 ms",
-        label, BENCH_BURST_GUARDS, total_ms / f64(BENCH_BURST_FRAMES), worst_ms,
+        "nav bench | %s | %d paths per frame | avg %.2f ms/frame | worst %.2f ms/frame | budget 16.6 ms\n",
+        label, BENCH_BURST_GUARDS,
+        total_ms / f64(BENCH_BURST_FRAMES), worst_ms,
     )
 }
 
@@ -155,7 +156,7 @@ bench_navigation :: proc(t: ^testing.T) {
 
     grid_w, grid_h := nav_grid_dims(&mission)
     fmt.printf(
-        "nav bench | mission.json | grid %dx%d = %d cells | %d solid rects | %d solid circles",
+        "nav bench | mission.json | grid %dx%d = %d cells | %d solid rects | %d solid circles\n",
         grid_w, grid_h, grid_w * grid_h,
         len(mission.geometry.solids), len(mission.geometry.circles),
     )
@@ -181,12 +182,9 @@ bench_navigation :: proc(t: ^testing.T) {
     target_distance := math.sqrt(target_dx*target_dx + target_dy*target_dy)
 
     fmt.printf(
-        "nav bench | extraction centre=(%.1f, %.1f) | resolved target=(%.1f, %.1f) | offset=%.2f\n",
-        extraction_center.x,
-        extraction_center.y,
-        extraction_target.x,
-        extraction_target.y,
-        target_distance,
+        "nav bench | mission.json | grid %dx%d = %d cells | %d solid rects | %d solid circles\n",
+        grid_w, grid_h, grid_w * grid_h,
+        len(mission.geometry.solids), len(mission.geometry.circles),
     )
 
     bench_path(
