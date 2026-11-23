@@ -1,3 +1,4 @@
+
 package main
 
 NAV_DIAGONAL_COST :: 1.41421356237
@@ -7,7 +8,62 @@ Navigation_Path_Result :: struct {
     found: bool,
 }
 
-// Integer grid covering the mission plane. One cell = one world unit.
+Nav_Open_Node :: struct {
+    index: int,
+    cost: f32,
+    score: f32,
+}
+
+nav_heap_less :: proc(a, b: Nav_Open_Node) -> bool {
+    if a.score != b.score {
+        return a.score < b.score
+    }
+    return a.index < b.index
+}
+
+nav_heap_push :: proc(heap: ^[dynamic]Nav_Open_Node, node: Nav_Open_Node) {
+    append(heap, node)
+    child := len(heap^) - 1
+
+    for child > 0 {
+        parent := (child - 1) / 2
+        if !nav_heap_less(heap[child], heap[parent]) do break
+        heap[child], heap[parent] = heap[parent], heap[child]
+        child = parent
+    }
+}
+
+nav_heap_pop :: proc(heap: ^[dynamic]Nav_Open_Node) -> Nav_Open_Node {
+    root := heap[0]
+    last := pop(heap)
+
+    if len(heap^) == 0 {
+        return root
+    }
+
+    heap[0] = last
+    parent := 0
+
+    for {
+        left := parent * 2 + 1
+        right := left + 1
+        smallest := parent
+
+        if left < len(heap^) && nav_heap_less(heap[left], heap[smallest]) {
+            smallest = left
+        }
+        if right < len(heap^) && nav_heap_less(heap[right], heap[smallest]) {
+            smallest = right
+        }
+        if smallest == parent do break
+
+        heap[parent], heap[smallest] = heap[smallest], heap[parent]
+        parent = smallest
+    }
+
+    return root
+}
+
 nav_grid_dims :: proc(mission: ^Mission) -> (width: int, height: int) {
     bounds := mission_bounds(mission)
     width = int(bounds.width)
@@ -27,19 +83,14 @@ nav_in_bounds :: proc(x, y, grid_width, grid_height: int) -> bool {
 }
 
 nav_cell_center :: proc(x, y: int) -> Mission_Point {
-    return Mission_Point{
-        x = f32(x) + 0.5,
-        y = f32(y) + 0.5,
-    }
+    return Mission_Point{x = f32(x) + 0.5, y = f32(y) + 0.5}
 }
 
 nav_heuristic :: proc(x, y, goal_x, goal_y: int) -> f32 {
     dx := abs(goal_x - x)
     dy := abs(goal_y - y)
-
     diagonal := min(dx, dy)
     straight := max(dx, dy) - diagonal
-
     return f32(diagonal) * NAV_DIAGONAL_COST + f32(straight)
 }
 
@@ -59,6 +110,7 @@ nav_find_path :: proc(
        goal.y < 0 || goal.y >= f32(grid_h) {
         return result
     }
+
     start_x := int(start.x)
     start_y := int(start.y)
     goal_x := int(goal.x)
@@ -83,9 +135,6 @@ nav_find_path :: proc(
     parents := make([]int, cell_count)
     defer delete(parents)
 
-    open := make([]bool, cell_count)
-    defer delete(open)
-
     closed := make([]bool, cell_count)
     defer delete(closed)
 
@@ -94,40 +143,27 @@ nav_find_path :: proc(
         parents[i] = -1
     }
 
+    open_heap: [dynamic]Nav_Open_Node
+    defer delete(open_heap)
+
     costs[start_idx] = 0
-    open[start_idx] = true
+    nav_heap_push(&open_heap, Nav_Open_Node{
+        index = start_idx,
+        cost = 0,
+        score = nav_heuristic(start_x, start_y, goal_x, goal_y),
+    })
 
     offsets := [8][2]int{
-        {-1,  0},
-        { 1,  0},
-        { 0, -1},
-        { 0,  1},
-        {-1, -1},
-        { 1, -1},
-        {-1,  1},
-        { 1,  1},
+        {-1,  0}, { 1,  0}, { 0, -1}, { 0,  1},
+        {-1, -1}, { 1, -1}, {-1,  1}, { 1,  1},
     }
 
-    for {
-        current_idx := -1
-        lowest_score: f32 = 1e30
+    for len(open_heap) > 0 {
+        entry := nav_heap_pop(&open_heap)
+        current_idx := entry.index
 
-        for i in 0..<cell_count {
-            if !open[i] do continue
-
-            x := i % grid_w
-            y := i / grid_w
-
-            score := costs[i] + nav_heuristic(x, y, goal_x, goal_y)
-
-            if score < lowest_score {
-                lowest_score = score
-                current_idx = i
-            }
-        }
-
-        if current_idx == -1 {
-            break
+        if entry.cost != costs[current_idx] || closed[current_idx] {
+            continue
         }
 
         if current_idx == goal_idx {
@@ -136,9 +172,7 @@ nav_find_path :: proc(
 
             current := current_idx
             for current >= 0 {
-                x := current % grid_w
-                y := current / grid_w
-                append(&reverse_path, nav_cell_center(x, y))
+                append(&reverse_path, nav_cell_center(current % grid_w, current / grid_w))
                 current = parents[current]
             }
 
@@ -155,16 +189,13 @@ nav_find_path :: proc(
             return result
         }
 
-        open[current_idx] = false
         closed[current_idx] = true
-
         current_x := current_idx % grid_w
         current_y := current_idx / grid_w
 
         for offset in offsets {
             dx := offset[0]
             dy := offset[1]
-
             next_x := current_x + dx
             next_y := current_y + dy
 
@@ -174,7 +205,6 @@ nav_find_path :: proc(
             if closed[next_idx] do continue
 
             next_point := nav_cell_center(next_x, next_y)
-
             if mission_point_collides(mission, next_point, radius) {
                 continue
             }
@@ -199,7 +229,13 @@ nav_find_path :: proc(
             if tentative_cost < costs[next_idx] {
                 costs[next_idx] = tentative_cost
                 parents[next_idx] = current_idx
-                open[next_idx] = true
+
+                h := nav_heuristic(next_x, next_y, goal_x, goal_y)
+                nav_heap_push(&open_heap, Nav_Open_Node{
+                    index = next_idx,
+                    cost = tentative_cost,
+                    score = tentative_cost + h,
+                })
             }
         }
     }
