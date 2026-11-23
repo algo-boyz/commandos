@@ -42,7 +42,7 @@ The README's original first-implementation checklist is therefore historical, no
 | game_test.odin | Pipeline through `game_update` with synthetic input: footsteps heard without line of sight, sneaking quieter than walking, sight building suspicion into an alert, player input stopped by geometry |
 | mission_flow_test.odin | Objective interaction range and edge-triggering, extraction gating, missions without an objective, success and frozen world, restart returning to a clean state |
 | mission_failure_test.odin | A guard touching the player fails the mission, the exact touch distance, failure winning over extraction in the same frame, frozen world, restart after failure, and a full see-alert-chase-catch pipeline |
-| mission_reachability_test.odin | Loads the real `mission.json` and checks, with the guards' own A*, that a position within `OBJECTIVE_INTERACT_RADIUS` of the objective and a position inside the extraction zone are both reachable from the spawn. Run tests from the repository root so `mission.json` is found. |
+| mission_reachability_test.odin | Loads the real `missions/eagle/mission.json` and checks, with the guards' own A*, that a position within `OBJECTIVE_INTERACT_RADIUS` of the objective and a position inside the extraction zone are both reachable from the spawn. |
 
 Do not add duplicate tests for these behaviours without first identifying a specific uncovered case. Prefer strengthening an existing regression test or adding an integration test that covers a real gap.
 

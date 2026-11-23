@@ -31,7 +31,7 @@ main :: proc() {
 
     rl.SetTargetFPS(60)
 
-    level, mission_ok := mission.mission_load("mission.json")
+    level, mission_ok := mission.mission_load("missions/eagle/mission.json")
     if !mission_ok {
         return
     }

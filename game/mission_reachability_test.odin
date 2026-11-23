@@ -67,7 +67,7 @@ test_real_mission_objective_and_extraction_are_reachable_from_spawn :: proc(t: ^
     mem.arena_init(&arena, backing)
     context.allocator = mem.arena_allocator(&arena)
 
-    level, loaded := mission.mission_load("mission.json")
+    level, loaded := mission.mission_load("missions/eagle/mission.json")
     testing.expect(
         t,
         loaded,

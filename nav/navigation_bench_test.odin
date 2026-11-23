@@ -132,7 +132,7 @@ bench_navigation :: proc(t: ^testing.T) {
     mem.arena_init(&arena, backing)
     context.allocator = mem.arena_allocator(&arena)
 
-    level, loaded := mission.mission_load("mission.json")
+    level, loaded := mission.mission_load("missions/eagle/mission.json")
     context.allocator = outer
 
     testing.expect(
