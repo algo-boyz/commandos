@@ -7,6 +7,7 @@ import "core:mem"
 import "core:testing"
 import "core:time"
 import "../mission"
+import "../geom"
 
 NAV_BENCH :: #config(NAV_BENCH, false)
 
@@ -21,11 +22,11 @@ bench_path :: proc(
     t: ^testing.T,
     label: string,
     level: ^mission.Mission,
-    start, goal: mission.Mission_Point,
+    start, goal: geom.Point,
     radius: f32,
     iterations: int,
 ) {
-    warm := nav_find_path(level, start, goal, radius)
+    warm := find_path(level, start, goal, radius)
     found := warm.found
     delete(warm.points)
 
@@ -35,7 +36,7 @@ bench_path :: proc(
 
     for _ in 0..<iterations {
         began := time.tick_now()
-        path := nav_find_path(level, start, goal, radius)
+        path := find_path(level, start, goal, radius)
         us := time.duration_microseconds(time.tick_since(began))
 
         total_us += us
@@ -54,7 +55,7 @@ bench_burst :: proc(
     t: ^testing.T,
     label: string,
     level: ^mission.Mission,
-    start, goal: mission.Mission_Point,
+    start, goal: geom.Point,
     radius: f32,
     paths_per_frame: int,
 ) {
@@ -65,7 +66,7 @@ bench_burst :: proc(
         began := time.tick_now()
 
         for _ in 0..<paths_per_frame {
-            path := nav_find_path(level, start, goal, radius)
+            path := find_path(level, start, goal, radius)
             delete(path.points)
         }
 
@@ -85,9 +86,9 @@ bench_burst :: proc(
 
 bench_nearest_open_cell :: proc(
     level: ^mission.Mission,
-    target: mission.Mission_Point,
+    target: geom.Point,
     radius: f32,
-) -> (mission.Mission_Point, bool) {
+) -> (geom.Point, bool) {
     grid_w, grid_h := nav_grid_dims(level)
     best := target
     best_dist_sq: f32 = 1e30
@@ -97,7 +98,7 @@ bench_nearest_open_cell :: proc(
         for x in 0..<grid_w {
             candidate := nav_cell_center(x, y)
 
-            if mission.point_collides(level, candidate, radius) {
+            if geom.point_collides(level, candidate, radius) {
                 continue
             }
 
@@ -132,7 +133,7 @@ bench_navigation :: proc(t: ^testing.T) {
     mem.arena_init(&arena, backing)
     context.allocator = mem.arena_allocator(&arena)
 
-    level, loaded := mission.mission_load("missions/eagle/mission.json")
+    level, loaded := mission.load("missions/eagle/mission.json")
     context.allocator = outer
 
     testing.expect(
@@ -151,7 +152,7 @@ bench_navigation :: proc(t: ^testing.T) {
         len(level.geometry.solids), len(level.geometry.circles),
     )
 
-    extraction_center := mission.Mission_Point{
+    extraction_center := geom.Point{
         level.extraction.x,
         level.extraction.y,
     }
@@ -208,7 +209,7 @@ bench_navigation :: proc(t: ^testing.T) {
 
     {
         empty := mission.Mission{}
-        defer mission.mission_geometry_destroy(&empty.geometry)
+        defer geom.destroy(&empty.geometry)
 
         bench_path(
             t, "empty map corner -> corner",
@@ -219,13 +220,13 @@ bench_navigation :: proc(t: ^testing.T) {
     {
         sealed := mission.Mission{
             walls = {
-                mission.Mission_Wall{x = 85, y = 85, w = 10, h = 1},
-                mission.Mission_Wall{x = 85, y = 94, w = 10, h = 1},
-                mission.Mission_Wall{x = 85, y = 85, w = 1, h = 10},
-                mission.Mission_Wall{x = 94, y = 85, w = 1, h = 10},
+                mission.Wall{x = 85, y = 85, w = 10, h = 1},
+                mission.Wall{x = 85, y = 94, w = 10, h = 1},
+                mission.Wall{x = 85, y = 85, w = 1, h = 10},
+                mission.Wall{x = 94, y = 85, w = 1, h = 10},
             },
         }
-        defer mission.mission_geometry_destroy(&sealed.geometry)
+        defer geom.destroy(&sealed.geometry)
 
         bench_path(
             t, "sealed goal (unreachable, full-grid expansion)",

@@ -2,6 +2,7 @@ package actors
 
 import "../mission"
 import "../nav"
+import "../geom"
 import "core:math"
 
 // ---------------------------------------------------------------------------
@@ -18,7 +19,7 @@ Guard_Behaviour :: enum u8 {
 
 // Shared path-walking state used by patrol, investigation and recovery.
 Path_Follower :: struct {
-    path:  []mission.Mission_Point,
+    path:  []geom.Point,
     index: int,
     ready: bool,
     found: bool,
@@ -29,7 +30,7 @@ Path_Follower :: struct {
 }
 
 Guard_Patrol :: struct {
-    points:         []mission.Mission_Point, // the authored route
+    points:         []geom.Point, // the authored route
     target_index:   int,
     pause_duration: f32,
     pause_remaining: f32,
@@ -40,7 +41,7 @@ Guard_Search :: struct {
     active:            bool,
     complete:          bool,
     pause_remaining:   f32,
-    base_facing:       mission.Mission_Point,
+    base_facing:       geom.Point,
     angle:             f32,
     direction:         f32,
     sweeps_completed:  int,
@@ -48,15 +49,15 @@ Guard_Search :: struct {
 
 Guard :: struct {
     id:                 string,
-    position:           mission.Mission_Point,
-    facing:             mission.Mission_Point,
+    position:           geom.Point,
+    facing:             geom.Point,
     awareness:          Guard_Awareness,
     behaviour:          Guard_Behaviour,
     speed:              f32,
     radius:             f32,
     hearing_threshold:  f32,
     player_visible:     bool,
-
+    pause_duration:     f32 `json:"pauseDuration"`,
     patrol:             Guard_Patrol,
     search:             Guard_Search,
     investigation:      Path_Follower,
@@ -118,19 +119,19 @@ follow_path :: proc(
         }
 
         step := min(guard.speed * remaining, distance)
-        direction := mission.Mission_Point{
+        direction := geom.Point{
             x = dx / distance,
             y = dy / distance,
         }
 
-        candidate := mission.Mission_Point{
+        candidate := geom.Point{
             x = guard.position.x + direction.x * step,
             y = guard.position.y + direction.y * step,
         }
 
         // Final collision safety check. If the route is no longer
         // usable, discard it and let the next update replan.
-        if mission.point_collides(lvl, candidate, guard.radius) {
+        if geom.point_collides(lvl, candidate, guard.radius) {
             path_follower_clear(follower)
             return remaining, false
         }
@@ -153,7 +154,7 @@ follow_path :: proc(
 guard_investigation_path_prepare :: proc(
     guard: ^Guard,
     level: ^mission.Mission,
-    target: mission.Mission_Point,
+    target: geom.Point,
 ) {
     // During visible pursuit, finish the current route before
     // considering a new target position.
@@ -175,7 +176,7 @@ guard_investigation_path_prepare :: proc(
     guard.investigation.goal_y = goal_y
     guard.investigation.ready = true
 
-    path := nav.nav_find_path(
+    path := nav.find_path(
         level,
         guard.position,
         target,
@@ -204,7 +205,7 @@ guard_patrol_path_prepare :: proc(
         return
     }
 
-    path := nav.nav_find_path(
+    path := nav.find_path(
         level,
         guard.position,
         guard.patrol.points[guard.patrol.target_index],
@@ -357,7 +358,7 @@ guards_init :: proc(lvl: ^mission.Mission) -> []Guard {
         if pause < 0 {
             pause = GUARD_DEFAULT_PAUSE
         }
-        position := mission.Mission_Point{}
+        position := geom.Point{}
         if len(definition.patrol) > 0 {
             position = definition.patrol[0]
         }
@@ -479,17 +480,17 @@ guard_investigate_update :: proc(
             return
         }
 
-        direction := mission.Mission_Point{
+        direction := geom.Point{
             x = dx / distance,
             y = dy / distance,
         }
         step := min(guard.speed * dt, distance)
-        candidate := mission.Mission_Point{
+        candidate := geom.Point{
             x = guard.position.x + direction.x * step,
             y = guard.position.y + direction.y * step,
         }
 
-        if !mission.point_collides(lvl, candidate, guard.radius) {
+        if !geom.point_collides(lvl, candidate, guard.radius) {
             guard.position = candidate
             guard.facing = direction
             return

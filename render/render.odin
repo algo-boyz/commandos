@@ -4,6 +4,7 @@ import "../actors"
 import "../game"
 import "../mission"
 import "../nav"
+import "../geom"
 import rl "vendor:raylib"
 
 // Everything that turns simulation state into pixels lives in render.odin and
@@ -19,13 +20,13 @@ BUILDING_RENDER_HEIGHT :: 4.0
 CRATE_RENDER_HEIGHT    :: 2.0
 
 // Map a simulation point into the renderer's 3D space (x → x, y → z).
-mission_point_to_world :: proc(p: mission.Mission_Point, height: f32 = 0) -> rl.Vector3 {
+point_to_world :: proc(p: geom.Point, height: f32 = 0) -> rl.Vector3 {
     return rl.Vector3{p.x, height, p.y}
 }
 
 // Draws the 3D scene. Call between BeginMode3D and EndMode3D. debug_path is
 // optional; pass an empty result to draw nothing.
-render_world :: proc(world: game.World, debug_path: nav.Navigation_Path_Result) {
+world :: proc(world: game.World, debug_path: nav.Navigation_Path_Result) {
     // mission_bounds takes a pointer, so give it a local copy to point at.
     lvl := world.level
 
@@ -102,11 +103,11 @@ render_debug_path :: proc(path: nav.Navigation_Path_Result) {
 
     // Path nodes sit just above ground level.
     for i in 0..<len(path.points) {
-        point := mission_point_to_world(path.points[i], 0.18)
+        point := point_to_world(path.points[i], 0.18)
         rl.DrawSphere(point, 0.20, rl.GOLD)
 
         if i + 1 < len(path.points) {
-            next := mission_point_to_world(path.points[i + 1], 0.18)
+            next := point_to_world(path.points[i + 1], 0.18)
             rl.DrawLine3D(point, next, rl.GOLD)
         }
     }
@@ -145,8 +146,8 @@ PLAYER_FACING_INDICATOR_LENGTH :: 2.5
 GUARD_FACING_INDICATOR_LENGTH  :: 1.8
 
 render_player :: proc(player: actors.Player) {
-    position := mission_point_to_world(player.position, 1)
-    facing_tip := mission_point_to_world(
+    position := point_to_world(player.position, 1)
+    facing_tip := point_to_world(
         {
             player.position.x + player.facing.x * PLAYER_FACING_INDICATOR_LENGTH,
             player.position.y + player.facing.y * PLAYER_FACING_INDICATOR_LENGTH,
@@ -160,8 +161,8 @@ render_player :: proc(player: actors.Player) {
 
 render_guards :: proc(guards: []actors.Guard) {
     for guard in guards {
-        position := mission_point_to_world(guard.position, 1)
-        facing_tip := mission_point_to_world(
+        position := point_to_world(guard.position, 1)
+        facing_tip := point_to_world(
             {
                 guard.position.x + guard.facing.x * GUARD_FACING_INDICATOR_LENGTH,
                 guard.position.y + guard.facing.y * GUARD_FACING_INDICATOR_LENGTH,

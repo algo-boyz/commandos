@@ -7,16 +7,17 @@ import "core:fmt"
 import "../actors"
 import "../mission"
 import "../nav"
+import "../geom"
 
 // Central test builder for Guard values. Keep all default field values
 // here so future Guard struct changes only need updating in one place.
 test_guard :: proc(
-    position: mission.Mission_Point = {0, 0},
-    facing: mission.Mission_Point = {1, 0},
+    position: geom.Point = {0, 0},
+    facing: geom.Point = {1, 0},
     awareness: Guard_Awareness = {},
     speed: f32 = 2,
     radius: f32 = GUARD_RADIUS,
-    patrol: []mission.Mission_Point = nil,
+    patrol: []geom.Point = nil,
     target_index: int = 0,
     pause_duration: f32 = GUARD_DEFAULT_PAUSE,
     hearing_threshold: f32 = GUARD_DEFAULT_HEARING_THRESHOLD,
@@ -77,7 +78,7 @@ test_alerted_guard_moves_to_last_known_position :: proc(t: ^testing.T) {
     testing.expect(t, guards[0].position.y >= 0)
     testing.expect(
         t,
-        !mission.point_collides(
+        !geom.point_collides(
             &level,
             guards[0].position,
             guards[0].radius,
@@ -111,7 +112,7 @@ test_alerted_guard_stops_at_last_known_position :: proc(t: ^testing.T) {
 test_alerted_guard_cannot_move_through_building :: proc(t: ^testing.T) {
     level := mission.Mission{
         buildings = {
-            mission.Mission_Rect{
+            mission.Rect{
                 x = 2,
                 y = -1,
                 w = 1,
@@ -181,7 +182,7 @@ test_alerted_guard_enters_recovering_after_search :: proc(t: ^testing.T) {
     guard := test_guard(awareness = Guard_Awareness{
             state = .ALERTED,
             last_known_position = {0, 0},
-        }, patrol = []mission.Mission_Point{{5, 0}, {10, 0}})
+        }, patrol = []geom.Point{{5, 0}, {10, 0}})
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation.path)
@@ -204,7 +205,7 @@ test_alerted_guard_returns_to_patrol_after_search :: proc(t: ^testing.T) {
             state = .ALERTED,
             last_known_position = {0, 0},
             last_known_source = .SIGHT,
-        }, patrol = []mission.Mission_Point{{5, 0}, {10, 0}})
+        }, patrol = []geom.Point{{5, 0}, {10, 0}})
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation.path)
@@ -279,7 +280,7 @@ test_suspicious_guard_moves_to_heard_noise :: proc(t: ^testing.T) {
     testing.expect(t, guards[0].awareness.state == .SUSPICIOUS)
     testing.expect(
         t,
-        !mission.point_collides(
+        !geom.point_collides(
             &level,
             guards[0].position,
             guards[0].radius,
@@ -367,14 +368,14 @@ test_guard_does_not_let_noise_override_visual_position :: proc(t: ^testing.T) {
 test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
     level := mission.Mission{
         cover = {
-            mission.Mission_Cover{
+            mission.Cover{
                 kind = "crate",
                 x = 33,
                 y = 42,
                 w = 4,
                 h = 3,
             },
-            mission.Mission_Cover{
+            mission.Cover{
                 kind = "crate",
                 x = 38,
                 y = 45,
@@ -386,7 +387,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
 
     guard := test_guard(
         position = {25, 48},
-        patrol = []mission.Mission_Point{
+        patrol = []geom.Point{
             {25, 48},
             {43.5, 49.5},
         },
@@ -406,7 +407,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
 
         testing.expect(
             t,
-            !mission.point_collides(
+            !geom.point_collides(
                 &level,
                 guards[0].position,
                 guards[0].radius,
@@ -423,7 +424,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
         next := guards[0].patrol.route.path[guards[0].patrol.route.index]
         fmt.printfln("  next node: %.2f, %.2f", next.x, next.y)
         fmt.printfln("  next node blocked: %v",
-            mission.point_collides(&level, next, guards[0].radius),
+            geom.point_collides(&level, next, guards[0].radius),
         )
     }
     testing.expect(t, reached_waypoint)
@@ -434,7 +435,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
 test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
     level := mission.Mission{
         buildings = {
-            mission.Mission_Rect{
+            mission.Rect{
                 x = 12,
                 y = 10,
                 w = 5,
@@ -450,7 +451,7 @@ test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
             suspicion = 1,
             last_known_source = .SIGHT,
         },
-        patrol = []mission.Mission_Point{
+        patrol = []geom.Point{
             {10.5, 12.5},
             {18.5, 12.5},
         },
@@ -470,7 +471,7 @@ test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
 
         testing.expect(
             t,
-            !mission.point_collides(
+            !geom.point_collides(
                 &level,
                 guards[0].position,
                 guards[0].radius,
@@ -495,7 +496,7 @@ test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
 test_guard_recovery_does_not_reset_when_path_unreachable :: proc(t: ^testing.T) {
     level := mission.Mission{
         buildings = {
-            mission.Mission_Rect{
+            mission.Rect{
                 x = 20,
                 y = 0,
                 w = 2,
@@ -511,7 +512,7 @@ test_guard_recovery_does_not_reset_when_path_unreachable :: proc(t: ^testing.T) 
             suspicion = 1,
             last_known_source = .SIGHT,
         },
-        patrol = []mission.Mission_Point{
+        patrol = []geom.Point{
             {10.5, 10.5},
             {30.5, 10.5},
         },
@@ -538,7 +539,7 @@ test_guard_recovery_does_not_reset_when_path_unreachable :: proc(t: ^testing.T) 
 test_alerted_guard_routes_around_building :: proc(t: ^testing.T) {
     level := mission.Mission{
         buildings = {
-            mission.Mission_Rect{
+            mission.Rect{
                 x = 2,
                 y = -1,
                 w = 1,
@@ -564,7 +565,7 @@ test_alerted_guard_routes_around_building :: proc(t: ^testing.T) {
 
         testing.expect(
             t,
-            !mission.point_collides(
+            !geom.point_collides(
                 &level,
                 guards[0].position,
                 guards[0].radius,
@@ -595,7 +596,7 @@ test_alerted_guard_does_not_move_toward_unreachable_target :: proc(
 ) {
     level := mission.Mission{
         buildings = {
-            mission.Mission_Rect{
+            mission.Rect{
                 x = 20,
                 y = 0,
                 w = 2,
@@ -673,7 +674,7 @@ test_guard_visible_pursuit_does_not_jitter_when_target_moves :: proc(
 ) {
     level := mission.Mission{
         buildings = {
-            mission.Mission_Rect{
+            mission.Rect{
                 x = 2,
                 y = -1,
                 w = 1,
@@ -712,7 +713,7 @@ test_guard_visible_pursuit_does_not_jitter_when_target_moves :: proc(
 
         testing.expect(
             t,
-            !mission.point_collides(
+            !geom.point_collides(
                 &level,
                 current,
                 guards[0].radius,
@@ -750,10 +751,10 @@ test_navigation_path_preserves_exact_start_position :: proc(
 ) {
     level := mission.Mission{}
 
-    start := mission.Mission_Point{0.2, 0.2}
-    goal := mission.Mission_Point{5.5, 0.5}
+    start := geom.Point{0.2, 0.2}
+    goal := geom.Point{5.5, 0.5}
 
-    path := nav.nav_find_path(
+    path := nav.find_path(
         &level,
         start,
         goal,
@@ -774,7 +775,7 @@ test_guard_visible_pursuit_uses_navigation_around_obstacle :: proc(
 ) {
     level := mission.Mission{
         buildings = {
-            mission.Mission_Rect{
+            mission.Rect{
                 x = 2,
                 y = -1,
                 w = 1,
@@ -800,7 +801,7 @@ test_guard_visible_pursuit_uses_navigation_around_obstacle :: proc(
 
         testing.expect(
             t,
-            !mission.point_collides(
+            !geom.point_collides(
                 &level,
                 guards[0].position,
                 guards[0].radius,

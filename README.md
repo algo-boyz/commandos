@@ -21,7 +21,7 @@ A small, deliberately readable infiltration sandbox for the Commandos-inspired p
 - Guard investigation, search pauses/scanning and return-to-patrol behaviour.
 - Grid-based A* navigation with obstacle avoidance and diagonal corner-cut prevention.
 - Regression coverage for pursuit steering, pursuit around obstacles, patrol/recovery navigation and the recent moving-target jitter issue.
-- A headless simulation entry point: `game_update(world, input, dt)`. `Input` is a plain struct filled from the keyboard in `main.odin`, and `World` owns the mission, player, guards and mission progress, so the whole simulation runs without raylib input.
+- A headless simulation entry point: `update(world, input, dt)`. `Input` is a plain struct filled from the keyboard in `main.odin`, and `World` owns the mission, player, guards and mission progress, so the whole simulation runs without raylib input.
 - The documents objective: modelled in mission data, completed by pressing E within `OBJECTIVE_INTERACT_RADIUS` of it.
 - Extraction gated on the objective, a success outcome that freezes the world, and restart (R) via `world_reset`.
 - Failure: any guard touching the player (overlapping circles) ends the mission as `FAILED`, whatever the guard's awareness state. The world freezes until restart.

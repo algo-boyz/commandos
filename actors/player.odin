@@ -1,6 +1,8 @@
 package actors
 
 import "../mission"
+import "../geom"
+
 import "core:math"
 
 PLAYER_WALK_SPEED :: 12.0
@@ -22,9 +24,9 @@ PLAYER_RUN_NOISE_INTENSITY :: 1.5
 // Player lives entirely in mission space. The renderer lifts position/facing
 // into 3D when drawing; simulation never sees a Vector3.
 Player :: struct {
-    position: mission.Mission_Point,
-    velocity: mission.Mission_Point,
-    facing: mission.Mission_Point,
+    position: geom.Point,
+    velocity: geom.Point,
+    facing: geom.Point,
     radius: f32,
     move_speed: f32,
     acceleration: f32,
@@ -34,7 +36,7 @@ Player :: struct {
     footstep_noise_intensity: f32,
 }
 
-player_init :: proc(position: mission.Mission_Point) -> Player {
+player_init :: proc(position: geom.Point) -> Player {
     return Player{
         position = position,
         facing = {0, -1},
@@ -74,18 +76,18 @@ player_update :: proc(
     }
 
     // input.move is already mission-space (x, y).
-    move := mission.Mission_Point{input.move.x, input.move.y}
+    move := geom.Point{input.move.x, input.move.y}
     move_length := math.sqrt(move.x * move.x + move.y * move.y)
 
-    desired := mission.Mission_Point{}
+    desired := geom.Point{}
     if move_length > 0 {
-        desired = mission.Mission_Point{
+        desired = geom.Point{
             move.x * (p.move_speed / move_length),
             move.y * (p.move_speed / move_length),
         }
     }
 
-    delta := mission.Mission_Point{
+    delta := geom.Point{
         desired.x - p.velocity.x,
         desired.y - p.velocity.y,
     }
@@ -118,7 +120,7 @@ player_update :: proc(
     next := p.position
     next.x += p.velocity.x * dt
 
-    if !mission.point_collides(level, next, p.radius) {
+    if !geom.point_collides(level, next, p.radius) {
         p.position.x = next.x
     } else {
         p.velocity.x = 0
@@ -127,7 +129,7 @@ player_update :: proc(
     next = p.position
     next.y += p.velocity.y * dt
 
-    if !mission.point_collides(level, next, p.radius) {
+    if !geom.point_collides(level, next, p.radius) {
         p.position.y = next.y
     } else {
         p.velocity.y = 0

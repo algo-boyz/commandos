@@ -2,6 +2,7 @@
 package actors
 
 import "../mission"
+import "../geom"
 import "core:math"
 
 Vision_Config :: struct {
@@ -21,8 +22,8 @@ PERCEPTION_EPSILON :: 0.00001
 // Tests whether a 2D segment intersects a rectangle.
 // Coordinates use the mission's top-down coordinate space.
 segment_intersects_rect :: proc(
-    start, finish: mission.Mission_Point,
-    rect: mission.Mission_Rect,
+    start, finish: geom.Point,
+    rect: geom.Rect,
 ) -> bool {
     dx := finish.x - start.x
     dy := finish.y - start.y
@@ -77,12 +78,12 @@ segment_intersects_rect :: proc(
 // Uses the same baked solids list as collision, so openings are consistent.
 mission_line_blocked :: proc(
     level: ^mission.Mission,
-    start, finish: mission.Mission_Point,
+    start, finish: geom.Point,
 ) -> bool {
     mission.mission_ensure_baked(level)
 
     for s in level.geometry.solids {
-        rect := mission.Mission_Rect{x = s.x, y = s.y, w = s.w, h = s.h}
+        rect := mission.Rect{x = s.x, y = s.y, w = s.w, h = s.h}
         if segment_intersects_rect(start, finish, rect) {
             return true
         }
@@ -97,9 +98,9 @@ mission_line_blocked :: proc(
 // facing and positions use the mission's 2D coordinate space.
 // fov_cos is the cosine of the half-angle of the vision cone.
 guard_can_see :: proc(
-    observer: mission.Mission_Point,
-    facing: mission.Mission_Point,
-    target: mission.Mission_Point,
+    observer: geom.Point,
+    facing: geom.Point,
+    target: geom.Point,
     level: ^mission.Mission,
     vision: Vision_Config,
 ) -> bool {

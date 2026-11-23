@@ -65,7 +65,7 @@ test_guard_vision_fov :: proc(t: ^testing.T) {
 test_guard_vision_building_occlusion :: proc(t: ^testing.T) {
     level := mission.Mission{
         buildings = {
-            mission.Mission_Rect{
+            mission.Rect{
                 x = 4,
                 y = -2,
                 w = 2,
@@ -89,13 +89,13 @@ test_guard_vision_building_occlusion :: proc(t: ^testing.T) {
 test_guard_vision_wall_opening :: proc(t: ^testing.T) {
     level := mission.Mission{
         walls = {
-            mission.Mission_Wall{
+            mission.Wall{
                 x = 10,
                 y = 0,
                 w = 1,
                 h = 20,
                 openings = {
-                    mission.Mission_Opening{
+                    mission.Point{
                         y = 8,
                         h = 4,
                     },

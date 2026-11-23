@@ -2,11 +2,12 @@
 package nav
 
 import "../mission"
+import "../geom"
 
 NAV_DIAGONAL_COST :: 1.41421356237
 
 Navigation_Path_Result :: struct {
-    points: []mission.Mission_Point,
+    points: []geom.Point,
     found: bool,
 }
 
@@ -84,8 +85,8 @@ nav_in_bounds :: proc(x, y, grid_width, grid_height: int) -> bool {
            y >= 0 && y < grid_height
 }
 
-nav_cell_center :: proc(x, y: int) -> mission.Mission_Point {
-    return mission.Mission_Point{x = f32(x) + 0.5, y = f32(y) + 0.5}
+nav_cell_center :: proc(x, y: int) -> geom.Point {
+    return geom.Point{x = f32(x) + 0.5, y = f32(y) + 0.5}
 }
 
 nav_heuristic :: proc(x, y, goal_x, goal_y: int) -> f32 {
@@ -96,10 +97,10 @@ nav_heuristic :: proc(x, y, goal_x, goal_y: int) -> f32 {
     return f32(diagonal) * NAV_DIAGONAL_COST + f32(straight)
 }
 
-nav_find_path :: proc(
+find_path :: proc(
     level: ^mission.Mission,
-    start: mission.Mission_Point,
-    goal: mission.Mission_Point,
+    start: geom.Point,
+    goal: geom.Point,
     radius: f32,
 ) -> Navigation_Path_Result {
     result := Navigation_Path_Result{}
@@ -123,8 +124,8 @@ nav_find_path :: proc(
         return result
     }
 
-    if mission.point_collides(level, start, radius) ||
-       mission.point_collides(level, goal, radius) {
+    if geom.point_collides(level, start, radius) ||
+       geom.point_collides(level, goal, radius) {
         return result
     }
 
@@ -169,7 +170,7 @@ nav_find_path :: proc(
         }
 
         if current_idx == goal_idx {
-            reverse_path := make([dynamic]mission.Mission_Point)
+            reverse_path := make([dynamic]geom.Point)
             defer delete(reverse_path)
 
             current := current_idx
@@ -178,7 +179,7 @@ nav_find_path :: proc(
                 current = parents[current]
             }
 
-            result.points = make([]mission.Mission_Point, len(reverse_path))
+            result.points = make([]geom.Point, len(reverse_path))
             for i in 0..<len(reverse_path) {
                 result.points[i] = reverse_path[len(reverse_path)-1-i]
             }
@@ -207,7 +208,7 @@ nav_find_path :: proc(
             if closed[next_idx] do continue
 
             next_point := nav_cell_center(next_x, next_y)
-            if mission.point_collides(level, next_point, radius) {
+            if geom.point_collides(level, next_point, radius) {
                 continue
             }
 
@@ -215,8 +216,8 @@ nav_find_path :: proc(
                 side_x := nav_cell_center(current_x + dx, current_y)
                 side_y := nav_cell_center(current_x, current_y + dy)
 
-                if mission.point_collides(level, side_x, radius) ||
-                   mission.point_collides(level, side_y, radius) {
+                if geom.point_collides(level, side_x, radius) ||
+                   geom.point_collides(level, side_y, radius) {
                     continue
                 }
             }

@@ -7,6 +7,7 @@ import "core:testing"
 import "../actors"
 import "../mission"
 import "../nav"
+import "../geom"
 
 // Loads the real mission.json and checks the mission is winnable on the
 // actual map: from the spawn, the player can reach a spot from which the
@@ -22,8 +23,8 @@ import "../nav"
 // that the guards use.
 cell_within_reach :: proc(
     level: ^mission.Mission,
-    from: mission.Mission_Point,
-    target: mission.Mission_Point,
+    from: geom.Point,
+    target: geom.Point,
     reach: f32,
     agent_radius: f32,
 ) -> bool {
@@ -44,8 +45,8 @@ cell_within_reach :: proc(
             }
 
             // Cells inside solid geometry are rejected immediately by
-            // nav_find_path, so only genuinely open cells cost a search.
-            path := nav.nav_find_path(level, from, centre, agent_radius)
+            // find_path, so only genuinely open cells cost a search.
+            path := nav.find_path(level, from, centre, agent_radius)
             if path.found {
                 return true
             }
@@ -67,7 +68,7 @@ test_real_mission_objective_and_extraction_are_reachable_from_spawn :: proc(t: ^
     mem.arena_init(&arena, backing)
     context.allocator = mem.arena_allocator(&arena)
 
-    level, loaded := mission.mission_load("missions/eagle/mission.json")
+    level, loaded := mission.load("missions/eagle/mission.json")
     testing.expect(
         t,
         loaded,
@@ -83,12 +84,12 @@ test_real_mission_objective_and_extraction_are_reachable_from_spawn :: proc(t: ^
     testing.expect(t, level.extraction.radius > 0)
     testing.expect(
         t,
-        !mission.point_collides(&level, level.player_spawn, player_radius),
+        !geom.point_collides(&level, level.player_spawn, player_radius),
         "player spawn is inside solid geometry",
     )
 
-    objective := mission.Mission_Point{level.objective.x, level.objective.y}
-    extraction := mission.Mission_Point{level.extraction.x, level.extraction.y}
+    objective := geom.Point{level.objective.x, level.objective.y}
+    extraction := geom.Point{level.extraction.x, level.extraction.y}
 
     testing.expect(
         t,

@@ -3,6 +3,7 @@ package game
 
 import "core:testing"
 import "../mission"
+import "../geom"
 
 // End-to-end mission flow, driven through game_update with synthetic Input:
 // objective interaction, extraction gating, success, frozen world, restart.
@@ -21,7 +22,7 @@ test_interact_out_of_range_does_not_complete_objective :: proc(t: ^testing.T) {
 
     testing.expect(t, !world.objective_complete)
 
-    game_update(&world, Input{interact = true}, 0.05)
+    update(&world, Input{interact = true}, 0.05)
 
     testing.expect(t, !world.objective_complete)
     testing.expect(t, world.outcome == .PLAYING)
@@ -37,10 +38,10 @@ test_interact_in_range_completes_objective_only_when_pressed :: proc(t: ^testing
     defer world_destroy(&world)
 
     // Standing next to the objective is not enough without interacting.
-    game_update(&world, Input{}, 0.05)
+    update(&world, Input{}, 0.05)
     testing.expect(t, !world.objective_complete)
 
-    game_update(&world, Input{interact = true}, 0.05)
+    update(&world, Input{interact = true}, 0.05)
     testing.expect(t, world.objective_complete)
     testing.expect(t, world.outcome == .PLAYING)
 }
@@ -56,7 +57,7 @@ test_extraction_does_not_succeed_before_objective_is_complete :: proc(t: ^testin
     defer world_destroy(&world)
 
     for _ in 0..<10 {
-        game_update(&world, Input{}, 0.05)
+        update(&world, Input{}, 0.05)
     }
 
     testing.expect(t, !world.objective_complete)
@@ -73,7 +74,7 @@ test_mission_without_objective_can_extract_immediately :: proc(t: ^testing.T) {
 
     testing.expect(t, world.objective_complete)
 
-    game_update(&world, Input{}, 0.05)
+    update(&world, Input{}, 0.05)
 
     testing.expect(t, world.outcome == .SUCCESS)
 }
@@ -87,7 +88,7 @@ test_complete_objective_then_walk_to_extraction_succeeds_and_freezes_world :: pr
     })
     defer world_destroy(&world)
 
-    game_update(&world, Input{interact = true}, 0.05)
+    update(&world, Input{interact = true}, 0.05)
     testing.expect(t, world.objective_complete)
     testing.expect(t, world.outcome == .PLAYING)
 
@@ -96,7 +97,7 @@ test_complete_objective_then_walk_to_extraction_succeeds_and_freezes_world :: pr
         if world.outcome != .PLAYING {
             break
         }
-        game_update(&world, Input{move = {1, 0}}, 0.05)
+        update(&world, Input{move = {1, 0}}, 0.05)
     }
 
     testing.expect(t, world.outcome == .SUCCESS)
@@ -106,7 +107,7 @@ test_complete_objective_then_walk_to_extraction_succeeds_and_freezes_world :: pr
 
     // The world is frozen once the mission has an outcome.
     frozen_x := world.player.position.x
-    game_update(&world, Input{move = {1, 0}}, 0.05)
+    update(&world, Input{move = {1, 0}}, 0.05)
     testing.expect(t, world.player.position.x == frozen_x)
     testing.expect(t, world.outcome == .SUCCESS)
 }
@@ -115,8 +116,8 @@ test_complete_objective_then_walk_to_extraction_succeeds_and_freezes_world :: pr
 test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T) {
     // Parked well off the player's route along y = 20: more than the
     // footstep noise radius away, and never close enough to touch.
-    patrol := []mission.Mission_Point{{20, 40}}
-    guard_defs := []mission.Mission_Guard{
+    patrol := []geom.Point{{20, 40}}
+    guard_defs := []actors.Guard{
         {id = "guard", patrol = patrol},
     }
 
@@ -128,12 +129,12 @@ test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T)
     })
     defer world_destroy(&world)
 
-    game_update(&world, Input{interact = true}, 0.05)
+    update(&world, Input{interact = true}, 0.05)
     for _ in 0..<60 {
         if world.outcome != .PLAYING {
             break
         }
-        game_update(&world, Input{move = {1, 0}}, 0.05)
+        update(&world, Input{move = {1, 0}}, 0.05)
     }
     testing.expect(t, world.outcome == .SUCCESS)
 
@@ -141,7 +142,7 @@ test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T)
     world.guards[0].position = {50, 50}
     world.guards[0].awareness.state = .ALERTED
 
-    game_update(&world, Input{restart = true}, 0.05)
+    update(&world, Input{restart = true}, 0.05)
 
     testing.expect(t, world.outcome == .PLAYING)
     testing.expect(t, !world.objective_complete)
@@ -157,6 +158,6 @@ test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T)
     testing.expect(t, world.guards[0].awareness.state == .UNAWARE)
 
     // And the mission is playable again from the clean state.
-    game_update(&world, Input{interact = true}, 0.05)
+    update(&world, Input{interact = true}, 0.05)
     testing.expect(t, world.objective_complete)
 }

@@ -1,6 +1,7 @@
 package game
 
 import "../actors"
+import "../geom"
 import "../mission"
 
 // Everything the simulation owns while a mission is running.
@@ -10,7 +11,7 @@ World :: struct {
     player: actors.Player,
     guards: []actors.Guard,
     objective_complete: bool,
-    outcome: mission.Mission_Outcome,
+    outcome: mission.Outcome,
 }
 
 mission_has_objective :: proc(level: ^mission.Mission) -> bool {
@@ -40,7 +41,7 @@ world_reset :: proc(world: ^World) {
 
 world_destroy :: proc(world: ^World) {
     actors.guards_destroy(world.guards)
-    mission.mission_geometry_destroy(&world.level.geometry)
+    geom.destroy(&world.level.geometry)
     world.guards = nil
 }
 

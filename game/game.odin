@@ -16,7 +16,7 @@ OBJECTIVE_INTERACT_RADIUS :: 4.0
 //
 // Restart works in any state. Once the mission has an outcome the world is
 // frozen until restart.
-game_update :: proc(world: ^World, input: Input, dt: f32) {
+update :: proc(world: ^World, input: Input, dt: f32) {
     if input.restart {
         world_reset(world)
         return

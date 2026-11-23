@@ -2,7 +2,9 @@
 package game
 
 import "core:testing"
+import "../actors"
 import "../mission"
+import "../geom"
 
 // These tests drive game_update with synthetic Input, so they cover the
 // player -> noise/perception -> awareness -> guard pipeline without raylib
@@ -12,11 +14,11 @@ import "../mission"
 test_walking_player_is_heard_by_guard_without_line_of_sight :: proc(t: ^testing.T) {
     // A building blocks sight between the player and the guard, so any
     // reaction must come from the footstep alone.
-    buildings := []mission.Mission_Rect{
+    buildings := []mission.Rect{
         {id = "blocker", x = 14, y = 15, w = 2, h = 10},
     }
-    patrol := []mission.Mission_Point{{20, 20}}
-    guard_defs := []mission.Mission_Guard{
+    patrol := []geom.Point{{20, 20}}
+    guard_defs := []actors.Guard{
         {id = "guard", patrol = patrol},
     }
 
@@ -27,7 +29,7 @@ test_walking_player_is_heard_by_guard_without_line_of_sight :: proc(t: ^testing.
     })
     defer world_destroy(&world)
 
-    game_update(&world, Input{move = {1, 0}}, 0.1)
+    update(&world, Input{move = {1, 0}}, 0.1)
 
     guard := world.guards[0]
 
@@ -48,11 +50,11 @@ test_walking_player_is_heard_by_guard_without_line_of_sight :: proc(t: ^testing.
 test_sneaking_player_is_not_heard_at_walking_distance :: proc(t: ^testing.T) {
     // Same geometry as the walking test: ~9.6 units is inside the walking
     // noise radius (18) but outside the sneaking radius (6).
-    buildings := []mission.Mission_Rect{
+    buildings := []mission.Rect{
         {id = "blocker", x = 14, y = 15, w = 2, h = 10},
     }
-    patrol := []mission.Mission_Point{{20, 20}}
-    guard_defs := []mission.Mission_Guard{
+    patrol := []geom.Point{{20, 20}}
+    guard_defs := []actors.Guard{
         {id = "guard", patrol = patrol},
     }
 
@@ -63,7 +65,7 @@ test_sneaking_player_is_not_heard_at_walking_distance :: proc(t: ^testing.T) {
     })
     defer world_destroy(&world)
 
-    game_update(&world, Input{move = {1, 0}, sneak = true}, 0.1)
+    update(&world, Input{move = {1, 0}, sneak = true}, 0.1)
 
     guard := world.guards[0]
 
@@ -76,8 +78,8 @@ test_sneaking_player_is_not_heard_at_walking_distance :: proc(t: ^testing.T) {
 test_guard_with_clear_view_builds_suspicion_then_alerts :: proc(t: ^testing.T) {
     // Guard faces +x (the default) with an unobstructed view of a
     // stationary player 10 units away.
-    patrol := []mission.Mission_Point{{20, 20}}
-    guard_defs := []mission.Mission_Guard{
+    patrol := []geom.Point{{20, 20}}
+    guard_defs := []actors.Guard{
         {id = "guard", patrol = patrol},
     }
 
@@ -89,7 +91,7 @@ test_guard_with_clear_view_builds_suspicion_then_alerts :: proc(t: ^testing.T) {
 
     // 0.5s of sight is less than AWARENESS_DEFAULT.build_duration (1.25s).
     for _ in 0..<5 {
-        game_update(&world, Input{}, 0.1)
+        update(&world, Input{}, 0.1)
     }
 
     testing.expect(t, world.guards[0].player_visible)
@@ -100,7 +102,7 @@ test_guard_with_clear_view_builds_suspicion_then_alerts :: proc(t: ^testing.T) {
 
     // 2.0s in total is past the build duration.
     for _ in 0..<15 {
-        game_update(&world, Input{}, 0.1)
+        update(&world, Input{}, 0.1)
     }
 
     testing.expect(t, world.guards[0].player_visible)
@@ -110,7 +112,7 @@ test_guard_with_clear_view_builds_suspicion_then_alerts :: proc(t: ^testing.T) {
 
 @(test)
 test_player_input_is_stopped_by_mission_geometry :: proc(t: ^testing.T) {
-    buildings := []mission.Mission_Rect{
+    buildings := []geom.Rect{
         {id = "blocker", x = 14, y = 15, w = 2, h = 10},
     }
 
@@ -122,7 +124,7 @@ test_player_input_is_stopped_by_mission_geometry :: proc(t: ^testing.T) {
 
     // Hold right for 3 seconds: plenty of time to reach and push on the wall.
     for _ in 0..<60 {
-        game_update(&world, Input{move = {1, 0}}, 0.05)
+        update(&world, Input{move = {1, 0}}, 0.05)
     }
 
     wall_face := f32(14) - world.player.radius

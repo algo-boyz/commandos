@@ -2,6 +2,7 @@
 package actors
 
 import "../mission"
+import "../geom"
 
 Guard_Awareness_State :: enum u8 {
     UNAWARE,
@@ -19,7 +20,7 @@ Last_Known_Source :: enum u8 {
 Guard_Awareness :: struct {
     state: Guard_Awareness_State,
     suspicion: f32,
-    last_known_position: mission.Mission_Point,
+    last_known_position: geom.Point,
     last_known_source: Last_Known_Source,
 }
 
@@ -45,7 +46,7 @@ guard_awareness_init :: proc() -> Guard_Awareness {
 // override the sound-derived position during the same frame.
 guard_awareness_hear_noise :: proc(
     awareness: ^Guard_Awareness,
-    noise_position: mission.Mission_Point,
+    noise_position: geom.Point,
 ) {
     if awareness.state == .ALERTED || awareness.last_known_source == .SIGHT {
         return
@@ -64,7 +65,7 @@ guard_awareness_hear_noise :: proc(
 guard_awareness_update :: proc(
     awareness: ^Guard_Awareness,
     sees_player: bool,
-    player_position: mission.Mission_Point,
+    player_position: geom.Point,
     dt: f32,
     config: Awareness_Config,
 ) {
