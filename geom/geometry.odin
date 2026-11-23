@@ -106,7 +106,7 @@ circle_hits_circle :: proc(
     return dx*dx + dz*dz < combined*combined
 }
 
-// Collision query against already-baked geometry. mission.point_collides is
+// Collision query against already-baked geometry. geom.point_collides is
 // the Mission-level wrapper that makes sure the geometry is baked first.
 point_collides :: proc(
     geo: ^Geometry,

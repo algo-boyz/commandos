@@ -26,7 +26,7 @@ point_to_world :: proc(p: geom.Point, height: f32 = 0) -> rl.Vector3 {
 
 // Draws the 3D scene. Call between BeginMode3D and EndMode3D. debug_path is
 // optional; pass an empty result to draw nothing.
-world :: proc(world: game.World, debug_path: nav.Navigation_Path_Result) {
+world :: proc(world: game.World, debug_path: nav.Path) {
     // mission_bounds takes a pointer, so give it a local copy to point at.
     lvl := world.level
 
@@ -96,7 +96,7 @@ render_geometry :: proc(geo: geom.Geometry) {
     }
 }
 
-render_debug_path :: proc(path: nav.Navigation_Path_Result) {
+render_debug_path :: proc(path: nav.Path) {
     if !path.found || len(path.points) == 0 {
         return
     }

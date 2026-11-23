@@ -14,7 +14,7 @@ Isometric :: struct {
     max_view_height: f32,
     follow_speed: f32,
     pan_speed: f32,
-    follow_enabled: bool,
+    follows: bool,
     dragging: bool,
     previous_mouse: rl.Vector2,
 }
@@ -23,7 +23,7 @@ DEFAULT_AZIMUTH :: 45.0
 DEFAULT_ELEVATION :: 38.0
 DEFAULT_VIEW_HEIGHT :: 32.0
 
-camera_init :: proc(
+init :: proc(
     target: rl.Vector3 = {0, 0, 0},
     view_height: f32 = DEFAULT_VIEW_HEIGHT,
 ) -> Isometric {
@@ -36,18 +36,18 @@ camera_init :: proc(
         max_view_height = 70.0,
         follow_speed = 8.0,
         pan_speed = 1.0,
-        follow_enabled = false,
+        follows = false,
     }
 
     c.camera.up = {0, 1, 0}
     c.camera.fovy = view_height
     c.camera.projection = rl.CameraProjection.ORTHOGRAPHIC
 
-    camera_rebuild(&c)
+    rebuild(&c)
     return c
 }
 
-camera_rebuild :: proc(c: ^Isometric) {
+rebuild :: proc(c: ^Isometric) {
     az := c.azimuth * math.PI / 180.0
     el := c.elevation * math.PI / 180.0
 
@@ -65,12 +65,12 @@ camera_rebuild :: proc(c: ^Isometric) {
     c.camera.projection = rl.CameraProjection.ORTHOGRAPHIC
 }
 
-camera_follow :: proc(
+follow :: proc(
     c: ^Isometric,
     target: rl.Vector3,
     dt: f32,
 ) {
-    if !c.follow_enabled do return
+    if !c.follows do return
 
     alpha := 1.0 - math.exp(-c.follow_speed * dt)
 
@@ -78,10 +78,10 @@ camera_follow :: proc(
     c.target.y += (target.y - c.target.y) * alpha
     c.target.z += (target.z - c.target.z) * alpha
 
-    camera_rebuild(c)
+    rebuild(c)
 }
 
-camera_update :: proc(c: ^Isometric, dt: f32) {
+update :: proc(c: ^Isometric, dt: f32) {
     wheel := rl.GetMouseWheelMove()
 
     if wheel != 0 {
@@ -130,5 +130,5 @@ camera_update :: proc(c: ^Isometric, dt: f32) {
         c.dragging = false
     }
 
-    camera_rebuild(c)
+    rebuild(c)
 }

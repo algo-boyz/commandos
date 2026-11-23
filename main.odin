@@ -2,8 +2,8 @@
 package main
 
 import rl "vendor:raylib"
+import "camera"
 import "game"
-import iso "camera"
 import "mission"
 import "nav"
 import "render"
@@ -39,10 +39,10 @@ main :: proc() {
     world := game.world_init(level)
     defer game.world_destroy(&world)
 
-    camera := iso.camera_init(render.point_to_world(world.player.position, 1), 65)
-    camera.follow_enabled = true
+    cam := camera.init(render.point_to_world(world.player.position, 1), 65)
+    cam.follows = true
 
-    nav_debug_path := nav.Navigation_Path_Result{}
+    nav_debug_path := nav.Path{}
     defer delete(nav_debug_path.points)
 
     for !rl.WindowShouldClose() {
@@ -50,7 +50,7 @@ main :: proc() {
 
         // Toggle camera follow with F.
         if rl.IsKeyPressed(rl.KeyboardKey.F) {
-            camera.follow_enabled = !camera.follow_enabled
+            cam.follows = !cam.follows
         }
 
         game.update(&world, input_poll(), dt)
@@ -58,7 +58,7 @@ main :: proc() {
         // Recalculate a debug path for the west guard on demand.
         if rl.IsKeyPressed(rl.KeyboardKey.P) {
             delete(nav_debug_path.points)
-            nav_debug_path = nav.Navigation_Path_Result{}
+            nav_debug_path = nav.Path{}
 
             if len(world.guards) > 0 {
                 guard := &world.guards[0]
@@ -76,13 +76,13 @@ main :: proc() {
             }
         }
 
-        iso.camera_update(&camera, dt)
-        iso.camera_follow(&camera, render.point_to_world(world.player.position, 1), dt)
+        camera.update(&cam, dt)
+        camera.follow(&cam, render.point_to_world(world.player.position, 1), dt)
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.RAYWHITE)
 
-        rl.BeginMode3D(camera.camera)
+        rl.BeginMode3D(cam.camera)
         render.world(world, nav_debug_path)
         rl.EndMode3D()
 

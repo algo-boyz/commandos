@@ -4,27 +4,27 @@ package nav
 import "../mission"
 import "../geom"
 
-NAV_DIAGONAL_COST :: 1.41421356237
+DIAGONAL_COST :: 1.41421356237
 
-Navigation_Path_Result :: struct {
+Path :: struct {
     points: []geom.Point,
     found: bool,
 }
 
-Nav_Open_Node :: struct {
+Node :: struct {
     index: int,
     cost: f32,
     score: f32,
 }
 
-nav_heap_less :: proc(a, b: Nav_Open_Node) -> bool {
+nav_heap_less :: proc(a, b: Node) -> bool {
     if a.score != b.score {
         return a.score < b.score
     }
     return a.index < b.index
 }
 
-nav_heap_push :: proc(heap: ^[dynamic]Nav_Open_Node, node: Nav_Open_Node) {
+nav_heap_push :: proc(heap: ^[dynamic]Node, node: Node) {
     append(heap, node)
     child := len(heap^) - 1
 
@@ -36,7 +36,7 @@ nav_heap_push :: proc(heap: ^[dynamic]Nav_Open_Node, node: Nav_Open_Node) {
     }
 }
 
-nav_heap_pop :: proc(heap: ^[dynamic]Nav_Open_Node) -> Nav_Open_Node {
+nav_heap_pop :: proc(heap: ^[dynamic]Node) -> Node {
     root := heap[0]
     last := pop(heap)
 
@@ -94,7 +94,7 @@ nav_heuristic :: proc(x, y, goal_x, goal_y: int) -> f32 {
     dy := abs(goal_y - y)
     diagonal := min(dx, dy)
     straight := max(dx, dy) - diagonal
-    return f32(diagonal) * NAV_DIAGONAL_COST + f32(straight)
+    return f32(diagonal) * DIAGONAL_COST + f32(straight)
 }
 
 find_path :: proc(
@@ -102,8 +102,8 @@ find_path :: proc(
     start: geom.Point,
     goal: geom.Point,
     radius: f32,
-) -> Navigation_Path_Result {
-    result := Navigation_Path_Result{}
+) -> Path {
+    result := Path{}
     grid_w, grid_h := nav_grid_dims(level)
     cell_count := grid_w * grid_h
 
@@ -146,11 +146,11 @@ find_path :: proc(
         parents[i] = -1
     }
 
-    open_heap: [dynamic]Nav_Open_Node
+    open_heap: [dynamic]Node
     defer delete(open_heap)
 
     costs[start_idx] = 0
-    nav_heap_push(&open_heap, Nav_Open_Node{
+    nav_heap_push(&open_heap, Node{
         index = start_idx,
         cost = 0,
         score = nav_heuristic(start_x, start_y, goal_x, goal_y),
@@ -224,7 +224,7 @@ find_path :: proc(
 
             move_cost := f32(1)
             if dx != 0 && dy != 0 {
-                move_cost = NAV_DIAGONAL_COST
+                move_cost = DIAGONAL_COST
             }
 
             tentative_cost := costs[current_idx] + move_cost
@@ -234,7 +234,7 @@ find_path :: proc(
                 parents[next_idx] = current_idx
 
                 h := nav_heuristic(next_x, next_y, goal_x, goal_y)
-                nav_heap_push(&open_heap, Nav_Open_Node{
+                nav_heap_push(&open_heap, Node{
                     index = next_idx,
                     cost = tentative_cost,
                     score = tentative_cost + h,
