@@ -1,3 +1,4 @@
+
 package main
 
 import "core:fmt"
@@ -6,22 +7,10 @@ import "core:mem"
 import "core:testing"
 import "core:time"
 
-// Navigation timing harness. It is a no-op in a normal `odin test .` run, so
-// it adds nothing to the suite. Switch it on to measure nav_find_path before
-// deciding whether to optimise it:
-//
-//   odin test . -o:speed -define:NAV_BENCH=true -define:ODIN_TEST_NAMES=main.bench_navigation -define:ODIN_TEST_THREADS=1
-//
-// Run it from the repository root so mission.json is found. Use the same -o:
-// level you build the game with; unoptimised numbers are several times worse.
-//
-// Timings are logged, not asserted: this is for reading, not for failing CI.
-// Budget to compare against: one frame at 60 FPS is 16.6 ms, and A* is only
-// one of several things that share it.
 NAV_BENCH :: #config(NAV_BENCH, false)
 
-BENCH_BURST_GUARDS :: 8
 BENCH_BURST_FRAMES :: 20
+BENCH_FRAME_BUDGET_MS :: 16.6
 
 bench_path :: proc(
     t: ^testing.T,
@@ -31,8 +20,6 @@ bench_path :: proc(
     radius: f32,
     iterations: int,
 ) {
-    // Warm-up call: bakes lazily-built geometry and touches the allocator, so
-    // neither lands in the first measured run.
     warm := nav_find_path(mission, start, goal, radius)
     found := warm.found
     delete(warm.points)
@@ -58,35 +45,36 @@ bench_path :: proc(
     )
 }
 
-// Several guards replanning in the same frame, repeated over several frames.
-// This is the situation the README's "optimise only if profiling shows it"
-// caveat is really about, so report it as milliseconds per frame.
 bench_burst :: proc(
     t: ^testing.T,
     label: string,
     mission: ^Mission,
     start, goal: Mission_Point,
     radius: f32,
+    paths_per_frame: int,
 ) {
     total_ms: f64
     worst_ms: f64
 
     for _ in 0..<BENCH_BURST_FRAMES {
         began := time.tick_now()
-        for _ in 0..<BENCH_BURST_GUARDS {
+
+        for _ in 0..<paths_per_frame {
             path := nav_find_path(mission, start, goal, radius)
             delete(path.points)
         }
-        ms := time.duration_milliseconds(time.tick_since(began))
 
+        ms := time.duration_milliseconds(time.tick_since(began))
         total_ms += ms
         worst_ms = max(worst_ms, ms)
     }
 
+    average_ms := total_ms / f64(BENCH_BURST_FRAMES)
+    budget_pct := average_ms / BENCH_FRAME_BUDGET_MS * 100.0
+
     fmt.printf(
-        "nav bench | %s | %d paths per frame | avg %.2f ms/frame | worst %.2f ms/frame | budget 16.6 ms\n",
-        label, BENCH_BURST_GUARDS,
-        total_ms / f64(BENCH_BURST_FRAMES), worst_ms,
+        "nav bench | %s | %d paths/frame | avg %.2f ms | worst %.2f ms | %.1f%% of 16.6 ms budget\n",
+        label, paths_per_frame, average_ms, worst_ms, budget_pct,
     )
 }
 
@@ -131,9 +119,6 @@ bench_navigation :: proc(t: ^testing.T) {
 
     agent_radius := player_init({}).radius
 
-    // Real mission. Loaded into a scratch arena so the runner's leak tracker
-    // stays quiet; the searches themselves run on the normal allocator,
-    // because every A* call allocates and then frees about 140 KB.
     outer := context.allocator
     backing := make([]byte, 8 * 1024 * 1024, outer)
     defer delete(backing, outer)
@@ -183,11 +168,8 @@ bench_navigation :: proc(t: ^testing.T) {
 
     fmt.printf(
         "nav bench | extraction centre=(%.1f, %.1f) | resolved target=(%.1f, %.1f) | offset=%.2f\n",
-        extraction_center.x,
-        extraction_center.y,
-        extraction_target.x,
-        extraction_target.y,
-        target_distance,
+        extraction_center.x, extraction_center.y,
+        extraction_target.x, extraction_target.y, target_distance,
     )
 
     bench_path(
@@ -195,7 +177,6 @@ bench_navigation :: proc(t: ^testing.T) {
         &mission, mission.player_spawn, extraction_target, agent_radius, 20,
     )
 
-    // A guard's short patrol leg, which is the common replan.
     for guard_def in mission.guards {
         if len(guard_def.patrol) >= 2 {
             bench_path(
@@ -206,13 +187,20 @@ bench_navigation :: proc(t: ^testing.T) {
         }
     }
 
+    // Baseline and scaling tests: 8, 32 and 64 simultaneous replans.
     bench_burst(
-        t, "mission.json burst, spawn -> extraction",
-        &mission, mission.player_spawn, extraction_target, agent_radius,
+        t, "mission.json baseline",
+        &mission, mission.player_spawn, extraction_target, agent_radius, 8,
+    )
+    bench_burst(
+        t, "mission.json medium stress",
+        &mission, mission.player_spawn, extraction_target, agent_radius, 32,
+    )
+    bench_burst(
+        t, "mission.json high stress",
+        &mission, mission.player_spawn, extraction_target, agent_radius, 64,
     )
 
-    // Empty 100x100 map, opposite corners: no obstacles, so this isolates
-    // the cost of the open-set scan from the cost of collision queries.
     {
         empty := Mission{}
         defer mission_geometry_destroy(&empty.geometry)
@@ -223,16 +211,13 @@ bench_navigation :: proc(t: ^testing.T) {
         )
     }
 
-    // Worst case for any A*: the goal is open but walled in, so the search
-    // cannot find it and expands every reachable cell before giving up.
-    // Guards hit this when a target is unreachable.
     {
         sealed := Mission{
             walls = {
                 Mission_Wall{x = 85, y = 85, w = 10, h = 1},
                 Mission_Wall{x = 85, y = 94, w = 10, h = 1},
-                Mission_Wall{x = 85, y = 85, w = 1,  h = 10},
-                Mission_Wall{x = 94, y = 85, w = 1,  h = 10},
+                Mission_Wall{x = 85, y = 85, w = 1, h = 10},
+                Mission_Wall{x = 94, y = 85, w = 1, h = 10},
             },
         }
         defer mission_geometry_destroy(&sealed.geometry)
