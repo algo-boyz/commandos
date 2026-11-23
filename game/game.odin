@@ -1,4 +1,5 @@
-package main
+package game
+
 
 // How close the player must be to the objective to interact with it.
 // Building interiors are solid in the greybox, so this must be large enough
@@ -22,10 +23,10 @@ game_update :: proc(world: ^World, input: Input, dt: f32) {
 
     player := &world.player
     guards := world.guards
-    mission := &world.mission
+    lvl := &world.mission
 
     // 1. Update player movement and deliver emitted footsteps.
-    if player_update(player, input, mission, dt) {
+    if player_update(player, input, lvl, dt) {
         noise := Noise_Event{
             position = player.position,
             radius = player.footstep_noise_radius,
@@ -49,7 +50,7 @@ game_update :: proc(world: ^World, input: Input, dt: f32) {
             guard.position,
             guard.facing,
             player.position,
-            mission,
+            lvl,
             vision,
         )
 
@@ -65,7 +66,7 @@ game_update :: proc(world: ^World, input: Input, dt: f32) {
     }
 
     // 3. Behaviour reacts to this frame's perception.
-    guard_update(guards, mission, dt)
+    guard_update(guards, lvl, dt)
 
     // 4. Objective and extraction progression.
     mission_progress_update(world, input)
@@ -78,7 +79,7 @@ game_update :: proc(world: ^World, input: Input, dt: f32) {
 // Being caught takes precedence over everything else in the same frame,
 // including reaching extraction.
 mission_progress_update :: proc(world: ^World, input: Input) {
-    mission := &world.mission
+    lvl := &world.level
 
     if world_player_caught(world) {
         world.outcome = .FAILED
@@ -89,20 +90,20 @@ mission_progress_update :: proc(world: ^World, input: Input) {
        !world.objective_complete &&
        world_player_within(
            world,
-           mission.objective.x,
-           mission.objective.y,
+           lvl.objective.x,
+           lvl.objective.y,
            OBJECTIVE_INTERACT_RADIUS,
        ) {
         world.objective_complete = true
     }
 
     if world.objective_complete &&
-       mission.extraction.radius > 0 &&
-       world_player_within(
+       lvl.extraction.radius > 0 &&
+       render.world_player_within(
            world,
-           mission.extraction.x,
-           mission.extraction.y,
-           mission.extraction.radius,
+           lvl.extraction.x,
+           lvl.extraction.y,
+           lvl.extraction.radius,
        ) {
         world.outcome = .SUCCESS
     }

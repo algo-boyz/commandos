@@ -1,6 +1,7 @@
 
-package main
+package actors
 
+import "../mission"
 import "core:math"
 
 Vision_Config :: struct {
@@ -20,8 +21,8 @@ PERCEPTION_EPSILON :: 0.00001
 // Tests whether a 2D segment intersects a rectangle.
 // Coordinates use the mission's top-down coordinate space.
 segment_intersects_rect :: proc(
-    start, finish: Mission_Point,
-    rect: Mission_Rect,
+    start, finish: mission.Mission_Point,
+    rect: mission.Mission_Rect,
 ) -> bool {
     dx := finish.x - start.x
     dy := finish.y - start.y
@@ -75,13 +76,13 @@ segment_intersects_rect :: proc(
 // Returns true if mission geometry obstructs the line between two points.
 // Uses the same baked solids list as collision, so openings are consistent.
 mission_line_blocked :: proc(
-    mission: ^Mission,
-    start, finish: Mission_Point,
+    level: ^mission.Mission,
+    start, finish: mission.Mission_Point,
 ) -> bool {
-    mission_ensure_baked(mission)
+    mission.mission_ensure_baked(level)
 
-    for s in mission.geometry.solids {
-        rect := Mission_Rect{x = s.x, y = s.y, w = s.w, h = s.h}
+    for s in level.geometry.solids {
+        rect := mission.Mission_Rect{x = s.x, y = s.y, w = s.w, h = s.h}
         if segment_intersects_rect(start, finish, rect) {
             return true
         }
@@ -96,10 +97,10 @@ mission_line_blocked :: proc(
 // facing and positions use the mission's 2D coordinate space.
 // fov_cos is the cosine of the half-angle of the vision cone.
 guard_can_see :: proc(
-    observer: Mission_Point,
-    facing: Mission_Point,
-    target: Mission_Point,
-    mission: ^Mission,
+    observer: mission.Mission_Point,
+    facing: mission.Mission_Point,
+    target: mission.Mission_Point,
+    level: ^mission.Mission,
     vision: Vision_Config,
 ) -> bool {
     dx := target.x - observer.x
@@ -135,5 +136,5 @@ guard_can_see :: proc(
         return false
     }
 
-    return !mission_line_blocked(mission, observer, target)
+    return !mission_line_blocked(level, observer, target)
 }

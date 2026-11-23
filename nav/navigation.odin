@@ -1,10 +1,12 @@
 
-package main
+package nav
+
+import "../mission"
 
 NAV_DIAGONAL_COST :: 1.41421356237
 
 Navigation_Path_Result :: struct {
-    points: []Mission_Point,
+    points: []mission.Mission_Point,
     found: bool,
 }
 
@@ -64,7 +66,7 @@ nav_heap_pop :: proc(heap: ^[dynamic]Nav_Open_Node) -> Nav_Open_Node {
     return root
 }
 
-nav_grid_dims :: proc(mission: ^Mission) -> (width: int, height: int) {
+nav_grid_dims :: proc(mission: ^mission.Mission) -> (width: int, height: int) {
     bounds := mission_bounds(mission)
     width = int(bounds.width)
     height = int(bounds.height)
@@ -82,8 +84,8 @@ nav_in_bounds :: proc(x, y, grid_width, grid_height: int) -> bool {
            y >= 0 && y < grid_height
 }
 
-nav_cell_center :: proc(x, y: int) -> Mission_Point {
-    return Mission_Point{x = f32(x) + 0.5, y = f32(y) + 0.5}
+nav_cell_center :: proc(x, y: int) -> mission.Mission_Point {
+    return mission.Mission_Point{x = f32(x) + 0.5, y = f32(y) + 0.5}
 }
 
 nav_heuristic :: proc(x, y, goal_x, goal_y: int) -> f32 {
@@ -95,13 +97,13 @@ nav_heuristic :: proc(x, y, goal_x, goal_y: int) -> f32 {
 }
 
 nav_find_path :: proc(
-    mission: ^Mission,
-    start: Mission_Point,
-    goal: Mission_Point,
+    level: ^mission.Mission,
+    start: mission.Mission_Point,
+    goal: mission.Mission_Point,
     radius: f32,
 ) -> Navigation_Path_Result {
     result := Navigation_Path_Result{}
-    grid_w, grid_h := nav_grid_dims(mission)
+    grid_w, grid_h := nav_grid_dims(level)
     cell_count := grid_w * grid_h
 
     if start.x < 0 || start.x >= f32(grid_w) ||
@@ -121,8 +123,8 @@ nav_find_path :: proc(
         return result
     }
 
-    if mission_point_collides(mission, start, radius) ||
-       mission_point_collides(mission, goal, radius) {
+    if mission.point_collides(level, start, radius) ||
+       mission.point_collides(level, goal, radius) {
         return result
     }
 
@@ -167,7 +169,7 @@ nav_find_path :: proc(
         }
 
         if current_idx == goal_idx {
-            reverse_path := make([dynamic]Mission_Point)
+            reverse_path := make([dynamic]mission.Mission_Point)
             defer delete(reverse_path)
 
             current := current_idx
@@ -176,7 +178,7 @@ nav_find_path :: proc(
                 current = parents[current]
             }
 
-            result.points = make([]Mission_Point, len(reverse_path))
+            result.points = make([]mission.Mission_Point, len(reverse_path))
             for i in 0..<len(reverse_path) {
                 result.points[i] = reverse_path[len(reverse_path)-1-i]
             }
@@ -205,7 +207,7 @@ nav_find_path :: proc(
             if closed[next_idx] do continue
 
             next_point := nav_cell_center(next_x, next_y)
-            if mission_point_collides(mission, next_point, radius) {
+            if mission.point_collides(level, next_point, radius) {
                 continue
             }
 
@@ -213,8 +215,8 @@ nav_find_path :: proc(
                 side_x := nav_cell_center(current_x + dx, current_y)
                 side_y := nav_cell_center(current_x, current_y + dy)
 
-                if mission_point_collides(mission, side_x, radius) ||
-                   mission_point_collides(mission, side_y, radius) {
+                if mission.point_collides(level, side_x, radius) ||
+                   mission.point_collides(level, side_y, radius) {
                     continue
                 }
             }

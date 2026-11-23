@@ -2,11 +2,15 @@
 package main
 
 import rl "vendor:raylib"
+import "game"
 import iso "isometric"
+import "mission"
+import "nav"
+import "render"
 
 // Translates the keyboard into one frame of simulation input.
-input_poll :: proc() -> Input {
-    input := Input{
+input_poll :: proc() -> game.Input {
+    input := game.Input{
         sneak = rl.IsKeyDown(rl.KeyboardKey.LEFT_CONTROL),
         run = rl.IsKeyDown(rl.KeyboardKey.LEFT_SHIFT),
         interact = rl.IsKeyPressed(rl.KeyboardKey.E),
@@ -27,18 +31,18 @@ main :: proc() {
 
     rl.SetTargetFPS(60)
 
-    mission, mission_ok := mission_load("mission.json")
+    level, mission_ok := mission.mission_load("mission.json")
     if !mission_ok {
         return
     }
 
-    world := world_init(mission)
-    defer world_destroy(&world)
+    world := render.world_init(level)
+    defer render.world_destroy(&world)
 
-    camera := iso.camera_init(mission_point_to_world(world.player.position, 1), 65)
+    camera := iso.camera_init(render.mission_point_to_world(world.player.position, 1), 65)
     camera.follow_enabled = true
 
-    nav_debug_path := Navigation_Path_Result{}
+    nav_debug_path := nav.Navigation_Path_Result{}
     defer delete(nav_debug_path.points)
 
     for !rl.WindowShouldClose() {
@@ -49,12 +53,12 @@ main :: proc() {
             camera.follow_enabled = !camera.follow_enabled
         }
 
-        game_update(&world, input_poll(), dt)
+        game.game_update(&world, input_poll(), dt)
 
         // Recalculate a debug path for the west guard on demand.
         if rl.IsKeyPressed(rl.KeyboardKey.P) {
             delete(nav_debug_path.points)
-            nav_debug_path = Navigation_Path_Result{}
+            nav_debug_path = nav.Navigation_Path_Result{}
 
             if len(world.guards) > 0 {
                 guard := &world.guards[0]
@@ -62,8 +66,8 @@ main :: proc() {
                 if len(guard.patrol.points) > 0 &&
                    guard.patrol.target_index >= 0 &&
                    guard.patrol.target_index < len(guard.patrol.points) {
-                    nav_debug_path = nav_find_path(
-                        &world.mission,
+                    nav_debug_path = nav.nav_find_path(
+                        &world.level,
                         guard.position,
                         guard.patrol.points[guard.patrol.target_index],
                         guard.radius,
@@ -73,16 +77,16 @@ main :: proc() {
         }
 
         iso.camera_update(&camera, dt)
-        iso.camera_follow(&camera, mission_point_to_world(world.player.position, 1), dt)
+        iso.camera_follow(&camera, render.mission_point_to_world(world.player.position, 1), dt)
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.RAYWHITE)
 
         rl.BeginMode3D(camera.camera)
-        render_world(world, nav_debug_path)
+        render.render_world(world, nav_debug_path)
         rl.EndMode3D()
 
-        hud_draw(world)
+        render.hud_draw(world)
 
         rl.EndDrawing()
     }

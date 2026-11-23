@@ -1,5 +1,5 @@
 
-package main
+package mission
 
 import "core:mem"
 import "core:testing"
@@ -79,7 +79,7 @@ test_real_mission_objective_and_extraction_are_reachable_from_spawn :: proc(t: ^
     testing.expect(t, mission.extraction.radius > 0)
     testing.expect(
         t,
-        !mission_point_collides(&mission, mission.player_spawn, player_radius),
+        !mission.point_collides(&mission, mission.player_spawn, player_radius),
         "player spawn is inside solid geometry",
     )
 

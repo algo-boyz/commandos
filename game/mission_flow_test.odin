@@ -1,5 +1,5 @@
 
-package main
+package game
 
 import "core:testing"
 

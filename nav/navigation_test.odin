@@ -1,5 +1,5 @@
 
-package main
+package nav
 
 import "core:testing"
 
@@ -46,7 +46,7 @@ test_navigation_routes_around_building :: proc(t: ^testing.T) {
     testing.expect(t, path.found)
 
     for point in path.points {
-        testing.expect(t, !mission_point_collides(&mission, point, 0.01))
+        testing.expect(t, !mission.point_collides(&mission, point, 0.01))
     }
 }
 

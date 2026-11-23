@@ -1,18 +1,20 @@
 
-package main
+package actors
 
 import "core:testing"
 import "core:fmt"
 
+import "../mission"
+
 // Central test builder for Guard values. Keep all default field values
 // here so future Guard struct changes only need updating in one place.
 test_guard :: proc(
-    position: Mission_Point = {0, 0},
-    facing: Mission_Point = {1, 0},
+    position: mission.Mission_Point = {0, 0},
+    facing: mission.Mission_Point = {1, 0},
     awareness: Guard_Awareness = {},
     speed: f32 = 2,
     radius: f32 = GUARD_RADIUS,
-    patrol: []Mission_Point = nil,
+    patrol: []mission.Mission_Point = nil,
     target_index: int = 0,
     pause_duration: f32 = GUARD_DEFAULT_PAUSE,
     hearing_threshold: f32 = GUARD_DEFAULT_HEARING_THRESHOLD,
@@ -73,7 +75,7 @@ test_alerted_guard_moves_to_last_known_position :: proc(t: ^testing.T) {
     testing.expect(t, guards[0].position.y >= 0)
     testing.expect(
         t,
-        !mission_point_collides(
+        !mission.point_collides(
             &mission,
             guards[0].position,
             guards[0].radius,
@@ -182,10 +184,10 @@ test_alerted_guard_enters_recovering_after_search :: proc(t: ^testing.T) {
     guards := []Guard{guard}
     defer delete(guards[0].investigation.path)
     defer delete(guards[0].patrol.route.path)
-    mission := Mission{}
+    lvl := Mission{}
 
     for _ in 0..<70 {
-        guard_update(guards, &mission, 0.1)
+        guard_update(guards, &lvl, 0.1)
     }
 
     testing.expect(t, !guards[0].search.active)
@@ -196,11 +198,11 @@ test_alerted_guard_enters_recovering_after_search :: proc(t: ^testing.T) {
 
 @(test)
 test_alerted_guard_returns_to_patrol_after_search :: proc(t: ^testing.T) {
-    guard := test_guard(awareness = Guard_Awareness{
+    guard := test_guard(awareness = actors.Guard_Awareness{
             state = .ALERTED,
             last_known_position = {0, 0},
             last_known_source = .SIGHT,
-        }, patrol = []Mission_Point{{5, 0}, {10, 0}})
+        }, patrol = []mission.Mission_Point{{5, 0}, {10, 0}})
 
     guards := []Guard{guard}
     defer delete(guards[0].investigation.path)
@@ -275,7 +277,7 @@ test_suspicious_guard_moves_to_heard_noise :: proc(t: ^testing.T) {
     testing.expect(t, guards[0].awareness.state == .SUSPICIOUS)
     testing.expect(
         t,
-        !mission_point_collides(
+        !mission.point_collides(
             &mission,
             guards[0].position,
             guards[0].radius,
@@ -294,7 +296,7 @@ test_suspicious_guard_finishes_noise_search_and_resets :: proc(t: ^testing.T) {
     guards := []Guard{guard}
     defer delete(guards[0].investigation.path)
     defer delete(guards[0].patrol.route.path)
-    mission := Mission{}
+    mission := mission.Mission{}
 
     for _ in 0..<100 {
         guard_update(guards, &mission, 0.1)
@@ -402,7 +404,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
 
         testing.expect(
             t,
-            !mission_point_collides(
+            !mission.point_collides(
                 &mission,
                 guards[0].position,
                 guards[0].radius,
@@ -419,7 +421,7 @@ test_guard_patrol_routes_around_adjacent_crates :: proc(t: ^testing.T) {
         next := guards[0].patrol.route.path[guards[0].patrol.route.index]
         fmt.printfln("  next node: %.2f, %.2f", next.x, next.y)
         fmt.printfln("  next node blocked: %v",
-            mission_point_collides(&mission, next, guards[0].radius),
+            mission.point_collides(&mission, next, guards[0].radius),
         )
     }
     testing.expect(t, reached_waypoint)
@@ -466,7 +468,7 @@ test_guard_recovery_routes_around_building :: proc(t: ^testing.T) {
 
         testing.expect(
             t,
-            !mission_point_collides(
+            !mission.point_collides(
                 &mission,
                 guards[0].position,
                 guards[0].radius,
@@ -560,7 +562,7 @@ test_alerted_guard_routes_around_building :: proc(t: ^testing.T) {
 
         testing.expect(
             t,
-            !mission_point_collides(
+            !mission.point_collides(
                 &mission,
                 guards[0].position,
                 guards[0].radius,
@@ -708,7 +710,7 @@ test_guard_visible_pursuit_does_not_jitter_when_target_moves :: proc(
 
         testing.expect(
             t,
-            !mission_point_collides(
+            !mission.point_collides(
                 &mission,
                 current,
                 guards[0].radius,
@@ -770,7 +772,7 @@ test_guard_visible_pursuit_uses_navigation_around_obstacle :: proc(
 ) {
     mission := Mission{
         buildings = {
-            Mission_Rect{
+            mission.Mission_Rect{
                 x = 2,
                 y = -1,
                 w = 1,
@@ -796,7 +798,7 @@ test_guard_visible_pursuit_uses_navigation_around_obstacle :: proc(
 
         testing.expect(
             t,
-            !mission_point_collides(
+            !mission.point_collides(
                 &mission,
                 guards[0].position,
                 guards[0].radius,

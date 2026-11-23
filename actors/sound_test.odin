@@ -1,5 +1,5 @@
 
-package main
+package actors
 
 import "core:testing"
 import "core:math"

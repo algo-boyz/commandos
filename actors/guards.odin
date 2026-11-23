@@ -1,5 +1,7 @@
-package main
+package actors
 
+import "../mission"
+import "../nav"
 import "core:math"
 
 // ---------------------------------------------------------------------------
@@ -16,7 +18,7 @@ Guard_Behaviour :: enum u8 {
 
 // Shared path-walking state used by patrol, investigation and recovery.
 Path_Follower :: struct {
-    path:  []Mission_Point,
+    path:  []mission.Mission_Point,
     index: int,
     ready: bool,
     found: bool,
@@ -27,7 +29,7 @@ Path_Follower :: struct {
 }
 
 Guard_Patrol :: struct {
-    points:         []Mission_Point, // the authored route
+    points:         []mission.Mission_Point, // the authored route
     target_index:   int,
     pause_duration: f32,
     pause_remaining: f32,
@@ -38,7 +40,7 @@ Guard_Search :: struct {
     active:            bool,
     complete:          bool,
     pause_remaining:   f32,
-    base_facing:       Mission_Point,
+    base_facing:       mission.Mission_Point,
     angle:             f32,
     direction:         f32,
     sweeps_completed:  int,
@@ -46,8 +48,8 @@ Guard_Search :: struct {
 
 Guard :: struct {
     id:                 string,
-    position:           Mission_Point,
-    facing:             Mission_Point,
+    position:           mission.Mission_Point,
+    facing:             mission.Mission_Point,
     awareness:          Guard_Awareness,
     behaviour:          Guard_Behaviour,
     speed:              f32,
@@ -89,7 +91,7 @@ path_follower_clear :: proc(f: ^Path_Follower) {
 follow_path :: proc(
     guard: ^Guard,
     follower: ^Path_Follower,
-    mission: ^Mission,
+    mission: ^mission.Mission,
     dt: f32,
 ) -> (remaining: f32, arrived: bool) {
     remaining = dt
@@ -128,7 +130,7 @@ follow_path :: proc(
 
         // Final collision safety check. If the route is no longer
         // usable, discard it and let the next update replan.
-        if mission_point_collides(mission, candidate, guard.radius) {
+        if mission.point_collides(mission, candidate, guard.radius) {
             path_follower_clear(follower)
             return remaining, false
         }
@@ -150,8 +152,8 @@ follow_path :: proc(
 
 guard_investigation_path_prepare :: proc(
     guard: ^Guard,
-    mission: ^Mission,
-    target: Mission_Point,
+    level: ^mission.Mission,
+    target: mission.Mission_Point,
 ) {
     // During visible pursuit, finish the current route before
     // considering a new target position.
@@ -174,7 +176,7 @@ guard_investigation_path_prepare :: proc(
     guard.investigation.ready = true
 
     path := nav_find_path(
-        mission,
+        level,
         guard.position,
         target,
         guard.radius,
@@ -187,7 +189,7 @@ guard_investigation_path_prepare :: proc(
 
 guard_patrol_path_prepare :: proc(
     guard: ^Guard,
-    mission: ^Mission,
+    level: ^mission.Mission,
 ) {
     if guard.patrol.route.ready &&
        guard.patrol.route.goal_x == guard.patrol.target_index {
@@ -202,8 +204,8 @@ guard_patrol_path_prepare :: proc(
         return
     }
 
-    path := nav_find_path(
-        mission,
+    path := nav.nav_find_path(
+        level,
         guard.position,
         guard.patrol.points[guard.patrol.target_index],
         guard.radius,
@@ -344,7 +346,7 @@ guard_recovery_begin :: proc(guard: ^Guard) {
 // Init / destroy
 // ---------------------------------------------------------------------------
 
-guards_init :: proc(mission: ^Mission) -> []Guard {
+guards_init :: proc(mission: ^mission.Mission) -> []Guard {
     guards := make([]Guard, len(mission.guards), context.allocator)
     for definition, i in mission.guards {
         speed := definition.speed
@@ -355,7 +357,7 @@ guards_init :: proc(mission: ^Mission) -> []Guard {
         if pause < 0 {
             pause = GUARD_DEFAULT_PAUSE
         }
-        position := Mission_Point{}
+        position := mission.Mission_Point{}
         if len(definition.patrol) > 0 {
             position = definition.patrol[0]
         }
@@ -406,7 +408,7 @@ guard_arrive :: proc(guard: ^Guard) {
 
 guard_patrol_update :: proc(
     guard: ^Guard,
-    mission: ^Mission,
+    mission: ^mission.Mission,
     dt: f32,
 ) {
     if dt <= 0 || guard.speed <= 0 {
@@ -452,7 +454,7 @@ guard_patrol_update :: proc(
 
 guard_investigate_update :: proc(
     guard: ^Guard,
-    mission: ^Mission,
+    lvl: ^mission.Mission,
     dt: f32,
 ) {
     if dt <= 0 || guard.speed <= 0 {
@@ -477,17 +479,17 @@ guard_investigate_update :: proc(
             return
         }
 
-        direction := Mission_Point{
+        direction := mission.Mission_Point{
             x = dx / distance,
             y = dy / distance,
         }
         step := min(guard.speed * dt, distance)
-        candidate := Mission_Point{
+        candidate := mission.Mission_Point{
             x = guard.position.x + direction.x * step,
             y = guard.position.y + direction.y * step,
         }
 
-        if !mission_point_collides(mission, candidate, guard.radius) {
+        if !mission.point_collides(lvl, candidate, guard.radius) {
             guard.position = candidate
             guard.facing = direction
             return
@@ -495,7 +497,7 @@ guard_investigate_update :: proc(
         // Blocked → fall through to A* below.
     }
 
-    guard_investigation_path_prepare(guard, mission, target)
+    guard_investigation_path_prepare(guard, lvl, target)
 
     dx_to_target := target.x - guard.position.x
     dy_to_target := target.y - guard.position.y
@@ -552,7 +554,7 @@ guard_investigate_update :: proc(
         left, _ := follow_path(
             guard,
             &guard.investigation,
-            mission,
+            lvl,
             remaining_time,
         )
         remaining_time = left
@@ -566,7 +568,7 @@ guard_investigate_update :: proc(
 
 guard_recover_update :: proc(
     guard: ^Guard,
-    mission: ^Mission,
+    lvl: ^mission.Mission,
     dt: f32,
 ) {
     if dt <= 0 || guard.speed <= 0 {
@@ -582,7 +584,7 @@ guard_recover_update :: proc(
         return
     }
 
-    guard_patrol_path_prepare(guard, mission)
+    guard_patrol_path_prepare(guard, lvl)
 
     if !guard.patrol.route.found {
         return
@@ -611,7 +613,7 @@ guard_recover_update :: proc(
         left, _ := follow_path(
             guard,
             &guard.patrol.route,
-            mission,
+            lvl,
             remaining_time,
         )
         remaining_time = left
@@ -674,7 +676,7 @@ guard_hear_noise :: proc(guard: ^Guard, noise: Noise_Event) {
 // Top-level update
 // ---------------------------------------------------------------------------
 
-guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
+guard_update :: proc(guards: []Guard, lvl: ^mission.Mission, dt: f32) {
     if dt <= 0 {
         return
     }
@@ -685,14 +687,14 @@ guard_update :: proc(guards: []Guard, mission: ^Mission, dt: f32) {
 
         switch guard.behaviour {
         case .RECOVER:
-            guard_recover_update(guard, mission, dt)
+            guard_recover_update(guard, lvl, dt)
         case .PURSUE, .INVESTIGATE, .SEARCH:
-            guard_investigate_update(guard, mission, dt)
+            guard_investigate_update(guard, lvl, dt)
         case .PATROL:
             if len(guard.patrol.points) < 2 || guard.speed <= 0 {
                 continue
             }
-            guard_patrol_update(guard, mission, dt)
+            guard_patrol_update(guard, lvl, dt)
         }
     }
 }

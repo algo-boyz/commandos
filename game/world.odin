@@ -1,30 +1,25 @@
-package main
+package game
 
-Mission_Outcome :: enum u8 {
-    PLAYING,
-    SUCCESS,
-    // A guard touched the player.
-    FAILED,
-}
+import "../mission"
 
 // Everything the simulation owns while a mission is running.
 // Rendering reads from a World; it never mutates one.
 World :: struct {
-    mission: Mission,
-    player: Player,
-    guards: []Guard,
+    level: mission.Mission,
+    player: actors.Player,
+    guards: []actors.Guard,
     objective_complete: bool,
-    outcome: Mission_Outcome,
+    outcome: mission.Mission_Outcome,
 }
 
-mission_has_objective :: proc(mission: ^Mission) -> bool {
-    return mission.objective.id != ""
+mission_has_objective :: proc(level: ^mission.Mission) -> bool {
+    return level.objective.id != ""
 }
 
 // Builds a World from a loaded mission. The World takes the mission by
 // value; guards keep slice views into the mission's patrol data.
-world_init :: proc(mission: Mission) -> World {
-    world := World{mission = mission}
+world_init :: proc(level: mission.Mission) -> World {
+    world := World{level = level}
     world_reset(&world)
     return world
 }

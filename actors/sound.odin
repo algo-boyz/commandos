@@ -1,15 +1,17 @@
 
-package main
+package actors
 
 import "core:math"
 
+import "../mission"
+
 Noise_Event :: struct {
-    position: Mission_Point,
+    position: mission.Mission_Point,
     radius: f32,
     intensity: f32,
 }
 
-noise_intensity_at :: proc(noise: Noise_Event, listener: Mission_Point) -> f32 {
+noise_intensity_at :: proc(noise: Noise_Event, listener: mission.Mission_Point) -> f32 {
     if noise.radius <= 0 || noise.intensity <= 0 {
         return 0
     }
@@ -27,7 +29,7 @@ noise_intensity_at :: proc(noise: Noise_Event, listener: Mission_Point) -> f32 {
 }
 
 guard_can_hear :: proc(
-    guard_position: Mission_Point,
+    guard_position: mission.Mission_Point,
     noise: Noise_Event,
     hearing_threshold: f32,
 ) -> bool {

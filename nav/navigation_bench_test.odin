@@ -1,11 +1,12 @@
 
-package main
+package nav
 
 import "core:fmt"
 import "core:math"
 import "core:mem"
 import "core:testing"
 import "core:time"
+import "../mission"
 
 NAV_BENCH :: #config(NAV_BENCH, false)
 
@@ -15,12 +16,12 @@ BENCH_FRAME_BUDGET_MS :: 16.6
 bench_path :: proc(
     t: ^testing.T,
     label: string,
-    mission: ^Mission,
-    start, goal: Mission_Point,
+    level: ^mission.Mission,
+    start, goal: mission.Mission_Point,
     radius: f32,
     iterations: int,
 ) {
-    warm := nav_find_path(mission, start, goal, radius)
+    warm := nav_find_path(level, start, goal, radius)
     found := warm.found
     delete(warm.points)
 
@@ -30,7 +31,7 @@ bench_path :: proc(
 
     for _ in 0..<iterations {
         began := time.tick_now()
-        path := nav_find_path(mission, start, goal, radius)
+        path := nav_find_path(level, start, goal, radius)
         us := time.duration_microseconds(time.tick_since(began))
 
         total_us += us
@@ -48,8 +49,8 @@ bench_path :: proc(
 bench_burst :: proc(
     t: ^testing.T,
     label: string,
-    mission: ^Mission,
-    start, goal: Mission_Point,
+    level: ^mission.Mission,
+    start, goal: mission.Mission_Point,
     radius: f32,
     paths_per_frame: int,
 ) {
@@ -60,7 +61,7 @@ bench_burst :: proc(
         began := time.tick_now()
 
         for _ in 0..<paths_per_frame {
-            path := nav_find_path(mission, start, goal, radius)
+            path := nav_find_path(level, start, goal, radius)
             delete(path.points)
         }
 
@@ -79,10 +80,10 @@ bench_burst :: proc(
 }
 
 bench_nearest_open_cell :: proc(
-    mission: ^Mission,
-    target: Mission_Point,
+    level: ^mission.Mission,
+    target: mission.Mission_Point,
     radius: f32,
-) -> (Mission_Point, bool) {
+) -> (mission.Mission_Point, bool) {
     grid_w, grid_h := nav_grid_dims(mission)
     best := target
     best_dist_sq: f32 = 1e30
@@ -92,7 +93,7 @@ bench_nearest_open_cell :: proc(
         for x in 0..<grid_w {
             candidate := nav_cell_center(x, y)
 
-            if mission_point_collides(mission, candidate, radius) {
+            if mission.point_collides(level, candidate, radius) {
                 continue
             }
 

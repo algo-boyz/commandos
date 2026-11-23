@@ -1,4 +1,4 @@
-package main
+package actors
 
 // One frame of player intent. The simulation only ever sees this struct,
 // never the keyboard, so game_update can be driven headlessly in tests.

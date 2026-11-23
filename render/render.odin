@@ -1,5 +1,8 @@
-package main
+package render
 
+import "../actors"
+import "../mission"
+import "../nav"
 import rl "vendor:raylib"
 
 // Everything that turns simulation state into pixels lives in render.odin and
@@ -15,18 +18,18 @@ BUILDING_RENDER_HEIGHT :: 4.0
 CRATE_RENDER_HEIGHT    :: 2.0
 
 // Map a simulation point into the renderer's 3D space (x → x, y → z).
-mission_point_to_world :: proc(p: Mission_Point, height: f32 = 0) -> rl.Vector3 {
+mission_point_to_world :: proc(p: mission.Mission_Point, height: f32 = 0) -> rl.Vector3 {
     return rl.Vector3{p.x, height, p.y}
 }
 
 // Draws the 3D scene. Call between BeginMode3D and EndMode3D. debug_path is
 // optional; pass an empty result to draw nothing.
-render_world :: proc(world: World, debug_path: Navigation_Path_Result) {
+render_world :: proc(world: World, debug_path: nav.Navigation_Path_Result) {
     // mission_bounds takes a pointer, so give it a local copy to point at.
-    mission := world.mission
+    lvl := world.level
 
-    render_ground(&mission)
-    render_geometry(world.mission.geometry)
+    render_ground(&lvl)
+    render_geometry(world.lvl.geometry)
     render_debug_path(debug_path)
     render_objective(world)
     render_extraction(world)
@@ -34,8 +37,8 @@ render_world :: proc(world: World, debug_path: Navigation_Path_Result) {
     render_guards(world.guards)
 }
 
-render_ground :: proc(mission: ^Mission) {
-    bounds := mission_bounds(mission)
+render_ground :: proc(lvl: ^mission.Mission) {
+    bounds := mission.mission_bounds(lvl)
 
     rl.DrawPlane(
         {bounds.width * 0.5, 0, bounds.height * 0.5},
@@ -48,7 +51,7 @@ render_ground :: proc(mission: ^Mission) {
 // Draws the baked collision geometry. Because collision, line of sight and
 // rendering all read the same list, a wall opening you can see is an opening
 // the guards and the player can use, for walls of either orientation.
-render_geometry :: proc(geo: Mission_Geometry) {
+render_geometry :: proc(geo: mission.Mission_Geometry) {
     for s in geo.solids {
         height: f32
         color: rl.Color
@@ -91,7 +94,7 @@ render_geometry :: proc(geo: Mission_Geometry) {
     }
 }
 
-render_debug_path :: proc(path: Navigation_Path_Result) {
+render_debug_path :: proc(path: nav.Navigation_Path_Result) {
     if !path.found || len(path.points) == 0 {
         return
     }
@@ -140,7 +143,7 @@ render_extraction :: proc(world: World) {
 PLAYER_FACING_INDICATOR_LENGTH :: 2.5
 GUARD_FACING_INDICATOR_LENGTH  :: 1.8
 
-render_player :: proc(player: Player) {
+render_player :: proc(player: actors.Player) {
     position := mission_point_to_world(player.position, 1)
     facing_tip := mission_point_to_world(
         {
@@ -154,7 +157,7 @@ render_player :: proc(player: Player) {
     rl.DrawLine3D(position, facing_tip, rl.DARKBLUE)
 }
 
-render_guards :: proc(guards: []Guard) {
+render_guards :: proc(guards: []actors.Guard) {
     for guard in guards {
         position := mission_point_to_world(guard.position, 1)
         facing_tip := mission_point_to_world(

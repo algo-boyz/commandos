@@ -1,9 +1,16 @@
-package main
+package mission
 
 import "core:encoding/json"
 import "core:fmt"
 import "core:math"
 import "core:os"
+
+Mission_Outcome :: enum u8 {
+    PLAYING,
+    SUCCESS,
+    // A guard touched the player.
+    FAILED,
+}
 
 // Single simulation coordinate type. The whole gameplay layer works in this
 // 2D top-down space. Mapping to 3D (x, height, y) happens only in the renderer.
@@ -120,8 +127,8 @@ Mission :: struct {
     geometry: Mission_Geometry,
 }
 
-mission_bounds :: proc(mission: ^Mission) -> Mission_Bounds {
-    b := mission.bounds
+mission_bounds :: proc(lvl: ^Mission) -> Mission_Bounds {
+    b := lvl.bounds
     if b.width <= 0 do b.width = MISSION_DEFAULT_BOUNDS.width
     if b.height <= 0 do b.height = MISSION_DEFAULT_BOUNDS.height
     return b
@@ -135,32 +142,32 @@ mission_load :: proc(path: string) -> (Mission, bool) {
     }
     defer delete(data)
 
-    mission: Mission
-    if err := json.unmarshal(data, &mission); err != nil {
+    lvl: Mission
+    if err := json.unmarshal(data, &lvl); err != nil {
         fmt.eprintfln("mission: invalid JSON in %s: %v", path, err)
         return {}, false
     }
-    if mission.bounds.width <= 0 {
-        mission.bounds.width = MISSION_DEFAULT_BOUNDS.width
+    if lvl.bounds.width <= 0 {
+        lvl.bounds.width = MISSION_DEFAULT_BOUNDS.width
     }
-    if mission.bounds.height <= 0 {
-        mission.bounds.height = MISSION_DEFAULT_BOUNDS.height
+    if lvl.bounds.height <= 0 {
+        lvl.bounds.height = MISSION_DEFAULT_BOUNDS.height
     }
-    mission.geometry = mission_bake(&mission)
-    return mission, true
+    lvl.geometry = mission_bake(&lvl)
+    return lvl, true
 }
 
 // Expand walls (both orientations), buildings and cover into a single list of
 // solid rects and circles. Openings become gaps between solid segments.
 // The opening coordinate (Mission_Opening.y / .h) is treated as an interval
 // along the wall's long axis.
-mission_bake :: proc(mission: ^Mission, allocator := context.allocator) -> Mission_Geometry {
+mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> Mission_Geometry {
     solids:  [dynamic]Solid_Rect
     circles: [dynamic]Solid_Circle
     solids.allocator  = allocator
     circles.allocator = allocator
 
-    for b in mission.buildings {
+    for b in lvl.buildings {
         append(&solids, Solid_Rect{x = b.x, y = b.y, w = b.w, h = b.h, kind = .BUILDING})
     }
 
@@ -229,11 +236,11 @@ mission_geometry_destroy :: proc(geo: ^Mission_Geometry) {
 
 // Ensures geometry is present. Safe to call repeatedly; used so hand-built
 // Mission values in tests still work without an explicit bake step.
-mission_ensure_baked :: proc(mission: ^Mission) {
-    if mission.geometry.baked {
+mission_ensure_baked :: proc(lvl: ^Mission) {
+    if lvl.geometry.baked {
         return
     }
-    mission.geometry = mission_bake(mission)
+    lvl.geometry = mission_bake(lvl)
 }
 
 circle_hits_box :: proc(
@@ -257,19 +264,19 @@ circle_hits_circle :: proc(
     return dx*dx + dz*dz < combined*combined
 }
 
-mission_point_collides :: proc(
-    mission: ^Mission,
+point_collides :: proc(
+    lvl: ^Mission,
     point: Mission_Point,
     radius: f32,
 ) -> bool {
-    mission_ensure_baked(mission)
+    mission_ensure_baked(lvl)
 
-    for s in mission.geometry.solids {
+    for s in lvl.geometry.solids {
         if circle_hits_box(point.x, point.y, radius, s.x, s.y, s.x + s.w, s.y + s.h) {
             return true
         }
     }
-    for c in mission.geometry.circles {
+    for c in lvl.geometry.circles {
         if circle_hits_circle(point.x, point.y, radius, c.x, c.y, c.r) {
             return true
         }
@@ -279,9 +286,9 @@ mission_point_collides :: proc(
 
 // Thin alias: simulation uses Mission_Point only.
 mission_collides :: proc(
-    mission: ^Mission,
+    lvl: ^Mission,
     point: Mission_Point,
     radius: f32,
 ) -> bool {
-    return mission_point_collides(mission, point, radius)
+    return mission.point_collides(lvl, point, radius)
 }
