@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:math"
 import "core:mem"
 import "core:testing"
 import "core:time"
@@ -9,10 +10,7 @@ import "core:time"
 // it adds nothing to the suite. Switch it on to measure nav_find_path before
 // deciding whether to optimise it:
 //
-//   odin test . -o:speed \
-//       -define:NAV_BENCH=true \
-//       -define:ODIN_TEST_NAMES=main.bench_navigation \
-//       -define:ODIN_TEST_THREADS=1
+//   odin test . -o:speed -define:NAV_BENCH=true -define:ODIN_TEST_NAMES=main.bench_navigation -define:ODIN_TEST_THREADS=1
 //
 // Run it from the repository root so mission.json is found. Use the same -o:
 // level you build the game with; unoptimised numbers are several times worse.
@@ -91,6 +89,39 @@ bench_burst :: proc(
     )
 }
 
+bench_nearest_open_cell :: proc(
+    mission: ^Mission,
+    target: Mission_Point,
+    radius: f32,
+) -> (Mission_Point, bool) {
+    grid_w, grid_h := nav_grid_dims(mission)
+    best := target
+    best_dist_sq: f32 = 1e30
+    found := false
+
+    for y in 0..<grid_h {
+        for x in 0..<grid_w {
+            candidate := nav_cell_center(x, y)
+
+            if mission_point_collides(mission, candidate, radius) {
+                continue
+            }
+
+            dx := candidate.x - target.x
+            dy := candidate.y - target.y
+            dist_sq := dx*dx + dy*dy
+
+            if dist_sq < best_dist_sq {
+                best_dist_sq = dist_sq
+                best = candidate
+                found = true
+            }
+        }
+    }
+
+    return best, found
+}
+
 @(test)
 bench_navigation :: proc(t: ^testing.T) {
     if !NAV_BENCH {
@@ -129,11 +160,38 @@ bench_navigation :: proc(t: ^testing.T) {
         len(mission.geometry.solids), len(mission.geometry.circles),
     )
 
-    extraction := Mission_Point{mission.extraction.x, mission.extraction.y}
+    extraction_center := Mission_Point{
+        mission.extraction.x,
+        mission.extraction.y,
+    }
+
+    extraction_target, target_valid := bench_nearest_open_cell(
+        &mission,
+        extraction_center,
+        agent_radius,
+    )
+
+    testing.expect(t, target_valid, "no open cell found near extraction")
+    if !target_valid {
+        return
+    }
+
+    target_dx := extraction_target.x - extraction_center.x
+    target_dy := extraction_target.y - extraction_center.y
+    target_distance := math.sqrt(target_dx*target_dx + target_dy*target_dy)
+
+    fmt.printf(
+        "nav bench | extraction centre=(%.1f, %.1f) | resolved target=(%.1f, %.1f) | offset=%.2f\n",
+        extraction_center.x,
+        extraction_center.y,
+        extraction_target.x,
+        extraction_target.y,
+        target_distance,
+    )
 
     bench_path(
         t, "mission.json spawn -> extraction (long route)",
-        &mission, mission.player_spawn, extraction, agent_radius, 20,
+        &mission, mission.player_spawn, extraction_target, agent_radius, 20,
     )
 
     // A guard's short patrol leg, which is the common replan.
@@ -149,7 +207,7 @@ bench_navigation :: proc(t: ^testing.T) {
 
     bench_burst(
         t, "mission.json burst, spawn -> extraction",
-        &mission, mission.player_spawn, extraction, agent_radius,
+        &mission, mission.player_spawn, extraction_target, agent_radius,
     )
 
     // Empty 100x100 map, opposite corners: no obstacles, so this isolates
