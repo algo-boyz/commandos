@@ -4,7 +4,6 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:math"
 import "core:os"
-import rl "vendor:raylib"
 
 // Single simulation coordinate type. The whole gameplay layer works in this
 // 2D top-down space. Mapping to 3D (x, height, y) happens only in the renderer.
@@ -81,12 +80,25 @@ Mission_Objective :: struct {
 // Runtime collision / LOS geometry produced by mission_bake.
 // Openings are expanded into solid segments so every consumer sees the same
 // shape. Horizontal and vertical walls are both supported.
+// What a baked solid was authored as. Collision and line of sight ignore it;
+// the renderer uses it to pick a height and colour, so it can draw straight
+// from the baked list instead of re-deriving wall openings from the JSON.
+Solid_Kind :: enum u8 {
+    BUILDING,
+    WALL,
+    CRATE,
+    BARREL,
+    TREE,
+}
+
 Solid_Rect :: struct {
     x, y, w, h: f32,
+    kind: Solid_Kind,
 }
 
 Solid_Circle :: struct {
     x, y, r: f32,
+    kind: Solid_Kind,
 }
 
 Mission_Geometry :: struct {
@@ -113,11 +125,6 @@ mission_bounds :: proc(mission: ^Mission) -> Mission_Bounds {
     if b.width <= 0 do b.width = MISSION_DEFAULT_BOUNDS.width
     if b.height <= 0 do b.height = MISSION_DEFAULT_BOUNDS.height
     return b
-}
-
-// Map a simulation point into the renderer's 3D space (x → x, y → z).
-mission_point_to_world :: proc(p: Mission_Point, height: f32 = 0) -> rl.Vector3 {
-    return rl.Vector3{p.x, height, p.y}
 }
 
 mission_load :: proc(path: string) -> (Mission, bool) {
@@ -154,12 +161,12 @@ mission_bake :: proc(mission: ^Mission, allocator := context.allocator) -> Missi
     circles.allocator = allocator
 
     for b in mission.buildings {
-        append(&solids, Solid_Rect{b.x, b.y, b.w, b.h})
+        append(&solids, Solid_Rect{x = b.x, y = b.y, w = b.w, h = b.h, kind = .BUILDING})
     }
 
     for wall in mission.walls {
         if len(wall.openings) == 0 {
-            append(&solids, Solid_Rect{wall.x, wall.y, wall.w, wall.h})
+            append(&solids, Solid_Rect{x = wall.x, y = wall.y, w = wall.w, h = wall.h, kind = .WALL})
             continue
         }
 
@@ -171,12 +178,12 @@ mission_bake :: proc(mission: ^Mission, allocator := context.allocator) -> Missi
                 start := math.clamp(op.y, wall.y, end)
                 stop  := math.clamp(op.y + op.h, wall.y, end)
                 if start > cursor {
-                    append(&solids, Solid_Rect{wall.x, cursor, wall.w, start - cursor})
+                    append(&solids, Solid_Rect{x = wall.x, y = cursor, w = wall.w, h = start - cursor, kind = .WALL})
                 }
                 cursor = max(cursor, stop)
             }
             if cursor < end {
-                append(&solids, Solid_Rect{wall.x, cursor, wall.w, end - cursor})
+                append(&solids, Solid_Rect{x = wall.x, y = cursor, w = wall.w, h = end - cursor, kind = .WALL})
             }
         } else {
             // Horizontal wall: openings measured along x.
@@ -186,12 +193,12 @@ mission_bake :: proc(mission: ^Mission, allocator := context.allocator) -> Missi
                 start := math.clamp(op.y, wall.x, end)
                 stop  := math.clamp(op.y + op.h, wall.x, end)
                 if start > cursor {
-                    append(&solids, Solid_Rect{cursor, wall.y, start - cursor, wall.h})
+                    append(&solids, Solid_Rect{x = cursor, y = wall.y, w = start - cursor, h = wall.h, kind = .WALL})
                 }
                 cursor = max(cursor, stop)
             }
             if cursor < end {
-                append(&solids, Solid_Rect{cursor, wall.y, end - cursor, wall.h})
+                append(&solids, Solid_Rect{x = cursor, y = wall.y, w = end - cursor, h = wall.h, kind = .WALL})
             }
         }
     }
@@ -199,9 +206,11 @@ mission_bake :: proc(mission: ^Mission, allocator := context.allocator) -> Missi
     for item in mission.cover {
         switch item.kind {
         case "crate":
-            append(&solids, Solid_Rect{item.x, item.y, item.w, item.h})
-        case "barrel", "tree":
-            append(&circles, Solid_Circle{item.x, item.y, item.r})
+            append(&solids, Solid_Rect{x = item.x, y = item.y, w = item.w, h = item.h, kind = .CRATE})
+        case "barrel":
+            append(&circles, Solid_Circle{x = item.x, y = item.y, r = item.r, kind = .BARREL})
+        case "tree":
+            append(&circles, Solid_Circle{x = item.x, y = item.y, r = item.r, kind = .TREE})
         }
     }
 
@@ -275,90 +284,4 @@ mission_collides :: proc(
     radius: f32,
 ) -> bool {
     return mission_point_collides(mission, point, radius)
-}
-
-mission_draw :: proc(mission: ^Mission) {
-    // Draw from the original authoring data so openings remain visible as
-    // gaps. Collision/LOS already use the baked solids, which stay in sync
-    // because both paths are produced by the same bake rules.
-    for wall in mission.walls {
-        wall_height: f32 = 2.5
-        if len(wall.openings) == 0 {
-            rl.DrawCube(
-                {wall.x + wall.w*0.5, wall_height*0.5, wall.y + wall.h*0.5},
-                wall.w, wall_height, wall.h, rl.DARKGRAY,
-            )
-        } else {
-            // Support both orientations (previously only vertical walls
-            // were drawn when they had openings).
-            vertical := wall.h >= wall.w
-            if vertical {
-                cursor := wall.y
-                for opening in wall.openings {
-                    opening_start := math.clamp(opening.y, wall.y, wall.y + wall.h)
-                    opening_end := math.clamp(opening.y + opening.h, wall.y, wall.y + wall.h)
-                    if opening_start > cursor {
-                        segment_h := opening_start - cursor
-                        rl.DrawCube(
-                            {wall.x + wall.w*0.5, wall_height*0.5, cursor + segment_h*0.5},
-                            wall.w, wall_height, segment_h, rl.DARKGRAY,
-                        )
-                    }
-                    cursor = max(cursor, opening_end)
-                }
-                if cursor < wall.y + wall.h {
-                    segment_h := wall.y + wall.h - cursor
-                    rl.DrawCube(
-                        {wall.x + wall.w*0.5, wall_height*0.5, cursor + segment_h*0.5},
-                        wall.w, wall_height, segment_h, rl.DARKGRAY,
-                    )
-                }
-            } else {
-                cursor := wall.x
-                for opening in wall.openings {
-                    opening_start := math.clamp(opening.y, wall.x, wall.x + wall.w)
-                    opening_end := math.clamp(opening.y + opening.h, wall.x, wall.x + wall.w)
-                    if opening_start > cursor {
-                        segment_w := opening_start - cursor
-                        rl.DrawCube(
-                            {cursor + segment_w*0.5, wall_height*0.5, wall.y + wall.h*0.5},
-                            segment_w, wall_height, wall.h, rl.DARKGRAY,
-                        )
-                    }
-                    cursor = max(cursor, opening_end)
-                }
-                if cursor < wall.x + wall.w {
-                    segment_w := wall.x + wall.w - cursor
-                    rl.DrawCube(
-                        {cursor + segment_w*0.5, wall_height*0.5, wall.y + wall.h*0.5},
-                        segment_w, wall_height, wall.h, rl.DARKGRAY,
-                    )
-                }
-            }
-        }
-    }
-
-    for building in mission.buildings {
-        height: f32 = 4
-        center := rl.Vector3{
-            building.x + building.w*0.5,
-            height*0.5,
-            building.y + building.h*0.5,
-        }
-        rl.DrawCube(center, building.w, height, building.h, rl.BROWN)
-        rl.DrawCubeWires(center, building.w, height, building.h, rl.DARKGRAY)
-    }
-
-    for item in mission.cover {
-        if item.kind == "crate" {
-            center := rl.Vector3{item.x + item.w*0.5, 1, item.y + item.h*0.5}
-            rl.DrawCube(center, item.w, 2, item.h, rl.BROWN)
-            rl.DrawCubeWires(center, item.w, 2, item.h, rl.DARKBROWN)
-        } else if item.kind == "barrel" {
-            rl.DrawCylinder({item.x, 1, item.y}, item.r, item.r, 2, 12, rl.DARKGREEN)
-        } else if item.kind == "tree" {
-            rl.DrawCylinder({item.x, 1.5, item.y}, 0.55, 0.4, 3, 8, rl.BROWN)
-            rl.DrawSphere({item.x, 4, item.y}, item.r, rl.GREEN)
-        }
-    }
 }

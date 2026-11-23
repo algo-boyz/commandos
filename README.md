@@ -26,6 +26,7 @@ A small, deliberately readable infiltration sandbox for the Commandos-inspired p
 - Extraction gated on the objective, a success outcome that freezes the world, and restart (R) via `world_reset`.
 - Failure: any guard touching the player (overlapping circles) ends the mission as `FAILED`, whatever the guard's awareness state. The world freezes until restart.
 - Greybox feedback: objective marker, locked/unlocked extraction pad, objective status text and a mission-complete banner.
+- Rendering is separated from the simulation. `render.odin` (3D scene) and `hud.odin` (2D overlay) read a `World` by value and draw from the baked collision geometry, so a wall opening you can see is one the guards and player can use, for walls of either orientation. `main.odin` is only the window, camera, input and frame loop. Raylib is imported only by `main.odin`, `render.odin`, `hud.odin` and the `isometric` package.
 
 The README's original first-implementation checklist is therefore historical, not a list of work that is still wholly outstanding.
 
@@ -55,7 +56,8 @@ Do not add duplicate tests for these behaviours without first identifying a spec
 - The guard tests exercise AI functions and update behaviour directly. `game_test.odin` and `mission_flow_test.odin` cover the pipeline and mission flow through `game_update` with synthetic input on small hand-built missions; `mission_reachability_test.odin` covers the real `mission.json`, but only for reachability, not for a full playthrough.
 - Within one `game_update`, a heard footstep turns the guard towards the noise before the perception pass runs. A guard with a clear view of the player can therefore hear, turn and see in the same frame, and sight then replaces the sound as the last-known source.
 - The current jitter regression checks moving-target pursuit over time and caps coarse direction changes at 80 over 400 updates. It is useful coverage, but the threshold is permissive and should be treated as a regression guard, not proof of perfect pursuit.
-- Navigation is a 100 × 100 grid A* implementation. Its current open-set selection scans the grid; optimise only if profiling shows it is a real bottleneck.
+- Navigation is a 100 × 100 grid A* implementation. Its current open-set selection scans the grid; optimise only if profiling shows it is a real bottleneck. `navigation_bench_test.odin` is the measuring tool: it does nothing in a normal `odin test .`, and `odin test . -o:speed -define:NAV_BENCH=true -define:ODIN_TEST_NAMES=main.bench_navigation -define:ODIN_TEST_THREADS=1` logs timings for a long route, a short patrol leg, an empty map, an unreachable goal and a burst of guards replanning in one frame. Record the numbers here once they have been run.
+- Everything is still one Odin package (`main`). Splitting into `sim/`, `nav/`, `mission/` and `render/` directories is deferred: it needs exported names and moved tests, and is better done with a compiler in the loop than in one large patch.
 - Keep gameplay geometry authoritative and independent of rendering. Gaussian splatting and production art remain later visual milestones, not prerequisites for the first playable mission.
 
 ## What is not yet a complete playable mission
