@@ -35,7 +35,7 @@ main :: proc() {
     world := world_init(mission)
     defer world_destroy(&world)
 
-    camera := iso.camera_init(world.player.position, 65)
+    camera := iso.camera_init(mission_point_to_world(world.player.position, 1), 65)
     camera.follow_enabled = true
 
     nav_debug_path := Navigation_Path_Result{}
@@ -73,19 +73,20 @@ main :: proc() {
         }
 
         iso.camera_update(&camera, dt)
-        iso.camera_follow(&camera, world.player.position, dt)
+        iso.camera_follow(&camera, mission_point_to_world(world.player.position, 1), dt)
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.RAYWHITE)
 
         rl.BeginMode3D(camera.camera)
 
+        bounds := mission_bounds(&world.mission)
         rl.DrawPlane(
-            {50, 0, 50},
-            {100, 100},
+            {bounds.width * 0.5, 0, bounds.height * 0.5},
+            {bounds.width, bounds.height},
             rl.LIGHTGRAY,
         )
-        rl.DrawGrid(100, 5)
+        rl.DrawGrid(i32(max(bounds.width, bounds.height)), 5)
 
         mission_draw(&world.mission)
 
@@ -114,18 +115,17 @@ main :: proc() {
             }
         }
 
-        // Player and facing indicator.
-        rl.DrawSphere(
-            world.player.position,
-            world.player.radius,
-            rl.BLUE,
+        // Player and facing indicator (mission space → world space).
+        player_world := mission_point_to_world(world.player.position, 1)
+        player_facing_world := mission_point_to_world(
+            {
+                world.player.position.x + world.player.facing.x * 2.5,
+                world.player.position.y + world.player.facing.y * 2.5,
+            },
+            1,
         )
-
-        rl.DrawLine3D(
-            world.player.position,
-            world.player.position + world.player.facing * 2.5,
-            rl.DARKBLUE,
-        )
+        rl.DrawSphere(player_world, world.player.radius, rl.BLUE)
+        rl.DrawLine3D(player_world, player_facing_world, rl.DARKBLUE)
 
         // Objective marker: gold until retrieved, then greyed out.
         if mission_has_objective(&world.mission) {

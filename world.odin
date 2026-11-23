@@ -34,11 +34,7 @@ world_init :: proc(mission: Mission) -> World {
 world_reset :: proc(world: ^World) {
     guards_destroy(world.guards)
 
-    world.player = player_init({
-        world.mission.player_spawn.x,
-        1,
-        world.mission.player_spawn.y,
-    })
+    world.player = player_init(world.mission.player_spawn)
     world.guards = guards_init(&world.mission)
 
     // A mission without an objective never gates extraction.
@@ -58,7 +54,7 @@ world_destroy :: proc(world: ^World) {
 world_player_caught :: proc(world: ^World) -> bool {
     for guard in world.guards {
         dx := guard.position.x - world.player.position.x
-        dy := guard.position.y - world.player.position.z
+        dy := guard.position.y - world.player.position.y
         reach := guard.radius + world.player.radius
 
         if dx*dx + dy*dy <= reach*reach {
@@ -72,6 +68,6 @@ world_player_caught :: proc(world: ^World) -> bool {
 // True when the player's centre is within radius of a mission-space point.
 world_player_within :: proc(world: ^World, x, y, radius: f32) -> bool {
     dx := world.player.position.x - x
-    dy := world.player.position.z - y
+    dy := world.player.position.y - y
     return dx*dx + dy*dy <= radius*radius
 }

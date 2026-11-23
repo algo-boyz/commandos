@@ -23,14 +23,15 @@ cell_within_reach :: proc(
     reach: f32,
     agent_radius: f32,
 ) -> bool {
+    grid_w, grid_h := nav_grid_dims(mission)
     min_x := max(int(target.x - reach) - 1, 0)
-    max_x := min(int(target.x + reach) + 1, NAV_GRID_SIZE - 1)
-    min_z := max(int(target.y - reach) - 1, 0)
-    max_z := min(int(target.y + reach) + 1, NAV_GRID_SIZE - 1)
+    max_x := min(int(target.x + reach) + 1, grid_w - 1)
+    min_y := max(int(target.y - reach) - 1, 0)
+    max_y := min(int(target.y + reach) + 1, grid_h - 1)
 
-    for z in min_z..=max_z {
+    for y in min_y..=max_y {
         for x in min_x..=max_x {
-            centre := nav_cell_center(x, z)
+            centre := nav_cell_center(x, y)
 
             dx := centre.x - target.x
             dy := centre.y - target.y

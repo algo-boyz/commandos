@@ -1,8 +1,5 @@
-
 package main
 
-NAV_GRID_SIZE :: 100
-NAV_CELL_COUNT :: NAV_GRID_SIZE * NAV_GRID_SIZE
 NAV_DIAGONAL_COST :: 1.41421356237
 
 Navigation_Path_Result :: struct {
@@ -10,28 +7,38 @@ Navigation_Path_Result :: struct {
     found: bool,
 }
 
-nav_index :: proc(x, z: int) -> int {
-    return z * NAV_GRID_SIZE + x
+// Integer grid covering the mission plane. One cell = one world unit.
+nav_grid_dims :: proc(mission: ^Mission) -> (width: int, height: int) {
+    bounds := mission_bounds(mission)
+    width = int(bounds.width)
+    height = int(bounds.height)
+    if width < 1 do width = 1
+    if height < 1 do height = 1
+    return
 }
 
-nav_in_bounds :: proc(x, z: int) -> bool {
-    return x >= 0 && x < NAV_GRID_SIZE &&
-           z >= 0 && z < NAV_GRID_SIZE
+nav_index :: proc(x, y, grid_width: int) -> int {
+    return y * grid_width + x
 }
 
-nav_cell_center :: proc(x, z: int) -> Mission_Point {
+nav_in_bounds :: proc(x, y, grid_width, grid_height: int) -> bool {
+    return x >= 0 && x < grid_width &&
+           y >= 0 && y < grid_height
+}
+
+nav_cell_center :: proc(x, y: int) -> Mission_Point {
     return Mission_Point{
         x = f32(x) + 0.5,
-        y = f32(z) + 0.5,
+        y = f32(y) + 0.5,
     }
 }
 
-nav_heuristic :: proc(x, z, goal_x, goal_z: int) -> f32 {
+nav_heuristic :: proc(x, y, goal_x, goal_y: int) -> f32 {
     dx := abs(goal_x - x)
-    dz := abs(goal_z - z)
+    dy := abs(goal_y - y)
 
-    diagonal := min(dx, dz)
-    straight := max(dx, dz) - diagonal
+    diagonal := min(dx, dy)
+    straight := max(dx, dy) - diagonal
 
     return f32(diagonal) * NAV_DIAGONAL_COST + f32(straight)
 }
@@ -43,20 +50,22 @@ nav_find_path :: proc(
     radius: f32,
 ) -> Navigation_Path_Result {
     result := Navigation_Path_Result{}
+    grid_w, grid_h := nav_grid_dims(mission)
+    cell_count := grid_w * grid_h
 
-    if start.x < 0 || start.x >= f32(NAV_GRID_SIZE) ||
-       start.y < 0 || start.y >= f32(NAV_GRID_SIZE) ||
-       goal.x < 0 || goal.x >= f32(NAV_GRID_SIZE) ||
-       goal.y < 0 || goal.y >= f32(NAV_GRID_SIZE) {
+    if start.x < 0 || start.x >= f32(grid_w) ||
+       start.y < 0 || start.y >= f32(grid_h) ||
+       goal.x < 0 || goal.x >= f32(grid_w) ||
+       goal.y < 0 || goal.y >= f32(grid_h) {
         return result
     }
     start_x := int(start.x)
-    start_z := int(start.y)
+    start_y := int(start.y)
     goal_x := int(goal.x)
-    goal_z := int(goal.y)
+    goal_y := int(goal.y)
 
-    if !nav_in_bounds(start_x, start_z) ||
-       !nav_in_bounds(goal_x, goal_z) {
+    if !nav_in_bounds(start_x, start_y, grid_w, grid_h) ||
+       !nav_in_bounds(goal_x, goal_y, grid_w, grid_h) {
         return result
     }
 
@@ -65,22 +74,22 @@ nav_find_path :: proc(
         return result
     }
 
-    start_idx := nav_index(start_x, start_z)
-    goal_idx := nav_index(goal_x, goal_z)
+    start_idx := nav_index(start_x, start_y, grid_w)
+    goal_idx := nav_index(goal_x, goal_y, grid_w)
 
-    costs := make([]f32, NAV_CELL_COUNT)
+    costs := make([]f32, cell_count)
     defer delete(costs)
 
-    parents := make([]int, NAV_CELL_COUNT)
+    parents := make([]int, cell_count)
     defer delete(parents)
 
-    open := make([]bool, NAV_CELL_COUNT)
+    open := make([]bool, cell_count)
     defer delete(open)
 
-    closed := make([]bool, NAV_CELL_COUNT)
+    closed := make([]bool, cell_count)
     defer delete(closed)
 
-    for i in 0..<NAV_CELL_COUNT {
+    for i in 0..<cell_count {
         costs[i] = 1e30
         parents[i] = -1
     }
@@ -103,16 +112,13 @@ nav_find_path :: proc(
         current_idx := -1
         lowest_score: f32 = 1e30
 
-        // Select the open node with the lowest estimated total cost.
-        for i in 0..<NAV_CELL_COUNT {
+        for i in 0..<cell_count {
             if !open[i] do continue
 
-            x := i % NAV_GRID_SIZE
-            z := i / NAV_GRID_SIZE
+            x := i % grid_w
+            y := i / grid_w
 
-            score := costs[i] + nav_heuristic(
-                x, z, goal_x, goal_z,
-            )
+            score := costs[i] + nav_heuristic(x, y, goal_x, goal_y)
 
             if score < lowest_score {
                 lowest_score = score
@@ -125,15 +131,14 @@ nav_find_path :: proc(
         }
 
         if current_idx == goal_idx {
-            // Reconstruct goal -> start, then reverse.
             reverse_path := make([dynamic]Mission_Point)
             defer delete(reverse_path)
 
             current := current_idx
             for current >= 0 {
-                x := current % NAV_GRID_SIZE
-                z := current / NAV_GRID_SIZE
-                append(&reverse_path, nav_cell_center(x, z))
+                x := current % grid_w
+                y := current / grid_w
+                append(&reverse_path, nav_cell_center(x, y))
                 current = parents[current]
             }
 
@@ -142,9 +147,6 @@ nav_find_path :: proc(
                 result.points[i] = reverse_path[len(reverse_path)-1-i]
             }
 
-            // Preserve the exact starting position. The A* search operates on
-            // grid cells, but movement must not snap the guard back to the
-            // centre of its current cell after a route is recalculated.
             if len(result.points) > 0 {
                 result.points[0] = start
             }
@@ -156,40 +158,39 @@ nav_find_path :: proc(
         open[current_idx] = false
         closed[current_idx] = true
 
-        current_x := current_idx % NAV_GRID_SIZE
-        current_z := current_idx / NAV_GRID_SIZE
+        current_x := current_idx % grid_w
+        current_y := current_idx / grid_w
 
         for offset in offsets {
             dx := offset[0]
-            dz := offset[1]
+            dy := offset[1]
 
             next_x := current_x + dx
-            next_z := current_z + dz
+            next_y := current_y + dy
 
-            if !nav_in_bounds(next_x, next_z) do continue
+            if !nav_in_bounds(next_x, next_y, grid_w, grid_h) do continue
 
-            next_idx := nav_index(next_x, next_z)
+            next_idx := nav_index(next_x, next_y, grid_w)
             if closed[next_idx] do continue
 
-            next_point := nav_cell_center(next_x, next_z)
+            next_point := nav_cell_center(next_x, next_y)
 
             if mission_point_collides(mission, next_point, radius) {
                 continue
             }
 
-            // Prevent diagonal movement through blocked corners.
-            if dx != 0 && dz != 0 {
-                side_x := nav_cell_center(current_x + dx, current_z)
-                side_z := nav_cell_center(current_x, current_z + dz)
+            if dx != 0 && dy != 0 {
+                side_x := nav_cell_center(current_x + dx, current_y)
+                side_y := nav_cell_center(current_x, current_y + dy)
 
                 if mission_point_collides(mission, side_x, radius) ||
-                   mission_point_collides(mission, side_z, radius) {
+                   mission_point_collides(mission, side_y, radius) {
                     continue
                 }
             }
 
             move_cost := f32(1)
-            if dx != 0 && dz != 0 {
+            if dx != 0 && dy != 0 {
                 move_cost = NAV_DIAGONAL_COST
             }
 

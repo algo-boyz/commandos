@@ -6,10 +6,21 @@ import "core:math"
 import "core:os"
 import rl "vendor:raylib"
 
+// Single simulation coordinate type. The whole gameplay layer works in this
+// 2D top-down space. Mapping to 3D (x, height, y) happens only in the renderer.
 Mission_Point :: struct {
     x: f32,
     y: f32,
 }
+
+// Authoring bounds of the mission plane. Loaded from coordinateSpace in JSON;
+// defaults keep older missions working.
+Mission_Bounds :: struct {
+    width:  f32,
+    height: f32,
+}
+
+MISSION_DEFAULT_BOUNDS :: Mission_Bounds{width = 100, height = 100}
 
 Mission_Rect :: struct {
     id: string,
@@ -85,6 +96,7 @@ Mission_Geometry :: struct {
 }
 
 Mission :: struct {
+    bounds:       Mission_Bounds `json:"coordinateSpace"`,
     player_spawn: Mission_Point `json:"playerSpawn"`,
     extraction: Mission_Extraction,
     objective: Mission_Objective,
@@ -94,6 +106,18 @@ Mission :: struct {
     guards: []Mission_Guard,
     // Filled by mission_bake / mission_ensure_baked. Not present in JSON.
     geometry: Mission_Geometry,
+}
+
+mission_bounds :: proc(mission: ^Mission) -> Mission_Bounds {
+    b := mission.bounds
+    if b.width <= 0 do b.width = MISSION_DEFAULT_BOUNDS.width
+    if b.height <= 0 do b.height = MISSION_DEFAULT_BOUNDS.height
+    return b
+}
+
+// Map a simulation point into the renderer's 3D space (x → x, y → z).
+mission_point_to_world :: proc(p: Mission_Point, height: f32 = 0) -> rl.Vector3 {
+    return rl.Vector3{p.x, height, p.y}
 }
 
 mission_load :: proc(path: string) -> (Mission, bool) {
@@ -108,6 +132,12 @@ mission_load :: proc(path: string) -> (Mission, bool) {
     if err := json.unmarshal(data, &mission); err != nil {
         fmt.eprintfln("mission: invalid JSON in %s: %v", path, err)
         return {}, false
+    }
+    if mission.bounds.width <= 0 {
+        mission.bounds.width = MISSION_DEFAULT_BOUNDS.width
+    }
+    if mission.bounds.height <= 0 {
+        mission.bounds.height = MISSION_DEFAULT_BOUNDS.height
     }
     mission.geometry = mission_bake(&mission)
     return mission, true
@@ -238,16 +268,13 @@ mission_point_collides :: proc(
     return false
 }
 
+// Thin alias: simulation uses Mission_Point only.
 mission_collides :: proc(
     mission: ^Mission,
-    pos: rl.Vector3,
+    point: Mission_Point,
     radius: f32,
 ) -> bool {
-    return mission_point_collides(
-        mission,
-        Mission_Point{x = pos.x, y = pos.z},
-        radius,
-    )
+    return mission_point_collides(mission, point, radius)
 }
 
 mission_draw :: proc(mission: ^Mission) {

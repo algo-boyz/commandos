@@ -39,7 +39,7 @@ test_walking_player_is_heard_by_guard_without_line_of_sight :: proc(t: ^testing.
     )
     testing.expect(
         t,
-        guard.awareness.last_known_position.y == world.player.position.z,
+        guard.awareness.last_known_position.y == world.player.position.y,
     )
 }
 

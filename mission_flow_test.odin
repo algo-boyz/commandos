@@ -146,10 +146,9 @@ test_restart_after_success_returns_to_clean_initial_state :: proc(t: ^testing.T)
     testing.expect(t, !world.objective_complete)
 
     testing.expect(t, world.player.position.x == 10)
-    testing.expect(t, world.player.position.y == 1)
-    testing.expect(t, world.player.position.z == 20)
+    testing.expect(t, world.player.position.y == 20)
     testing.expect(t, world.player.velocity.x == 0)
-    testing.expect(t, world.player.velocity.z == 0)
+    testing.expect(t, world.player.velocity.y == 0)
 
     testing.expect(t, len(world.guards) == 1)
     testing.expect(t, world.guards[0].position.x == 20)
