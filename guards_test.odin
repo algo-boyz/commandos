@@ -21,7 +21,7 @@ test_guard :: proc(
     search_pause_remaining: f32 = 0,
 ) -> Guard {
     a := awareness
-    if a == Guard_Awareness{} {
+    if a == {} {
         a = guard_awareness_init()
     }
     return Guard{
