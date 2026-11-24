@@ -135,7 +135,7 @@ player_update :: proc(
         p.velocity.y = 0
     }
 
-    bounds := mission.mission_bounds(level)
+    bounds := mission.bounds(level)
     p.position.x = math.clamp(p.position.x, p.radius, bounds.width - p.radius)
     p.position.y = math.clamp(p.position.y, p.radius, bounds.height - p.radius)
 

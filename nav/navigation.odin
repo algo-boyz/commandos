@@ -68,7 +68,7 @@ nav_heap_pop :: proc(heap: ^[dynamic]Node) -> Node {
 }
 
 nav_grid_dims :: proc(lvl: ^mission.Mission) -> (width: int, height: int) {
-    bounds := mission.mission_bounds(lvl)
+    bounds := mission.bounds(lvl)
     width = int(bounds.width)
     height = int(bounds.height)
     if width < 1 do width = 1

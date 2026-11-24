@@ -80,7 +80,7 @@ mission_line_blocked :: proc(
     level: ^mission.Mission,
     start, finish: geom.Point,
 ) -> bool {
-    mission.mission_ensure_baked(level)
+    mission.ensure_baked(level)
 
     for s in level.geometry.solids {
         rect := geom.Rect{x = s.x, y = s.y, w = s.w, h = s.h}

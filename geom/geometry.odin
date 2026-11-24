@@ -42,7 +42,7 @@ Cover :: struct {
     r: f32,
 }
 
-// Runtime collision / LOS geometry produced by mission_bake.
+// Runtime collision / LOS geometry produced by bake.
 // Openings are expanded into solid segments so every consumer sees the same
 // shape. Horizontal and vertical walls are both supported.
 // What a baked solid was authored as. Collision and line of sight ignore it;

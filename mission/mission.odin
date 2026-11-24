@@ -54,11 +54,11 @@ Mission :: struct {
     walls: []geom.Wall,
     cover: []geom.Cover,
     guards: []Guard_Def,
-    // Filled by mission_bake / mission_ensure_baked. Not present in JSON.
+    // Filled by bake / ensure_baked. Not present in JSON.
     geometry: geom.Geometry,
 }
 
-mission_bounds :: proc(lvl: ^Mission) -> geom.Bounds {
+bounds :: proc(lvl: ^Mission) -> geom.Bounds {
     b := lvl.bounds
     if b.width <= 0 do b.width = MISSION_DEFAULT_BOUNDS.width
     if b.height <= 0 do b.height = MISSION_DEFAULT_BOUNDS.height
@@ -84,7 +84,7 @@ load :: proc(path: string) -> (Mission, bool) {
     if lvl.bounds.height <= 0 {
         lvl.bounds.height = MISSION_DEFAULT_BOUNDS.height
     }
-    lvl.geometry = mission_bake(&lvl)
+    lvl.geometry = bake(&lvl)
     return lvl, true
 }
 
@@ -92,7 +92,7 @@ load :: proc(path: string) -> (Mission, bool) {
 // solid rects and circles. Openings become gaps between solid segments.
 // The opening coordinate (Point.y / .h) is treated as an interval
 // along the wall's long axis.
-mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> geom.Geometry {
+bake :: proc(lvl: ^Mission, allocator := context.allocator) -> geom.Geometry {
     solids:  [dynamic]geom.Solid
     circles: [dynamic]geom.Circle
     solids.allocator  = allocator
@@ -161,11 +161,11 @@ mission_bake :: proc(lvl: ^Mission, allocator := context.allocator) -> geom.Geom
 
 // Ensures geometry is present. Safe to call repeatedly; used so hand-built
 // Mission values in tests still work without an explicit bake step.
-mission_ensure_baked :: proc(lvl: ^Mission) {
+ensure_baked :: proc(lvl: ^Mission) {
     if lvl.geometry.baked {
         return
     }
-    lvl.geometry = mission_bake(lvl)
+    lvl.geometry = bake(lvl)
 }
 
 // Collision query against the mission's baked geometry, baking it first if
@@ -175,6 +175,16 @@ point_collides :: proc(
     point: geom.Point,
     radius: f32,
 ) -> bool {
-    mission_ensure_baked(lvl)
+    ensure_baked(lvl)
     return geom.point_collides(&lvl.geometry, point, radius)
+}
+
+// Frees bake-owned geometry. Safe to call on a zero Mission.
+// Does not free buildings/walls/cover/guards slices: those may be JSON
+// allocations from load() or compound-literal data in tests, and the two
+// ownership paths are not distinguished yet. Callers that load via load()
+// and need a full unload should free those slices explicitly (or track
+// ownership in a follow-up).
+destroy :: proc(lvl: ^Mission) {
+    geom.destroy(&lvl.geometry)
 }
