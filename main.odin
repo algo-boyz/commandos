@@ -1,6 +1,8 @@
 
 package main
 
+import "core:os"
+
 import rl "vendor:raylib"
 import "camera"
 import "game"
@@ -31,7 +33,11 @@ main :: proc() {
 
     rl.SetTargetFPS(60)
 
-    level, mission_ok := mission.load("mission/eagle/mission.json")
+    // odin run . -- path/to/mission.json   (e.g. a mission exported by sandtable)
+    mission_path := "mission/eagle/mission.json"
+    if len(os.args) > 1 do mission_path = os.args[1]
+
+    level, mission_ok := mission.load(mission_path)
     if !mission_ok {
         return
     }
